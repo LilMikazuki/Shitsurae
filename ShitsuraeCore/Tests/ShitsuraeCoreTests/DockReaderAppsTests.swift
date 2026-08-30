@@ -84,6 +84,12 @@ private func tile(path: String, bundleId: String, label: String) -> [String: Any
     }
 }
 
+/// Текст видит пользователь, поэтому закреплён дословно.
+@Test func текстНеподдерживаемогоТипаТайлаЗакреплён() {
+    #expect("\(DockReadError.unsupportedTileType(index: 0, tileType: "small-spacer-tile"))"
+        == "Dock item #0 is a \"small-spacer-tile\", which Shitsurae does not support yet.")
+}
+
 /// Разделитель и порча формата должны различаться без разбора строк:
 /// у пользователя с разделителями и у пользователя на новой macOS
 /// разные причины и разные тексты в интерфейсе.

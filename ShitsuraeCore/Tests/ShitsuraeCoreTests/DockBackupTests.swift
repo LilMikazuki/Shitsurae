@@ -83,6 +83,12 @@ private func удалитьДомен(_ domain: String) {
     p.standardError = FileHandle.nullDevice
     try? p.run()
     p.waitUntilExit()
+
+    // `defaults delete` опустошает домен, но файл на диске оставляет.
+    // Без этого каждый прогон тестов копит заглушки в Preferences навсегда.
+    let file = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Preferences/\(domain).plist")
+    try? FileManager.default.removeItem(at: file)
 }
 
 private func записатьВДомен(_ domain: String, key: String, value: String) throws {

@@ -19,7 +19,7 @@ extension DockBackupError: CustomStringConvertible {
         case .exportProducedInvalidFile:
             "`defaults export` reported success but did not produce a valid backup file."
         case .backupMissing:
-            "There is no backup to restore from."
+            "There is no usable backup to restore from."
         case let .importFailed(status):
             "`defaults import` failed with exit status \(status)."
         case .importDidNotApply:
@@ -49,7 +49,7 @@ public struct DockBackup: Sendable {
     }
 
     public var backupURL: URL {
-        directory.appendingPathComponent("com.apple.dock.original.plist")
+        directory.appendingPathComponent("\(domain).original.plist")
     }
 
     public var exists: Bool {
@@ -58,6 +58,12 @@ public struct DockBackup: Sendable {
 
     /// Возвращает `true`, если бэкап создан этим вызовом,
     /// и `false`, если он уже был — существующий не перезаписывается никогда.
+    ///
+    /// Исключение — файл, который не разбирается: он для этого метода
+    /// неотличим от отсутствующего, и на его месте молча появится свежий
+    /// экспорт текущего домена. Спасать в нём нечего, но это значит, что
+    /// пользователь с побитым бэкапом тихо получит новый «оригинал» — тот,
+    /// что было применено последним, а не тот, с которого всё начиналось.
     @discardableResult
     public func createIfNeeded() throws -> Bool {
         if exists {
@@ -95,6 +101,12 @@ public struct DockBackup: Sendable {
     /// об успехе по содержимому файла. Восстановление — последняя линия
     /// обороны пользователя, и «молча не сработало» здесь недопустимо,
     /// поэтому после импорта домен перечитывается и сверяется с бэкапом.
+    ///
+    /// Это единственный публичный путь записи в домен мимо гейта чтения
+    /// `DockEngine`, и так задумано: восстановление обязано работать именно
+    /// тогда, когда разбор домена падает, то есть когда гейт запретил бы всё.
+    /// Безопасно это потому, что записывается не произвольное состояние, а
+    /// ранее снятый экспорт того же самого домена.
     public func restore() throws {
         guard let expected = Self.contents(of: backupURL) else {
             throw DockBackupError.backupMissing

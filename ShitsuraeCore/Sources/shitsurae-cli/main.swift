@@ -24,11 +24,20 @@ let jsonEncoder: JSONEncoder = {
 let command: ShitsuraeCommand
 do {
     command = try ShitsuraeCommand.parse(Array(CommandLine.arguments.dropFirst()))
-} catch CommandParseError.noCommand, CommandParseError.unknownCommand {
+} catch CommandParseError.noCommand {
     // Запуск без команды — это не успех: скрипт с `if shitsurae-cli; then`
     // иначе принял бы «ничего не сделано» за удачу.
     printUsage(asError: true)
     exit(1)
+} catch let error as CommandParseError {
+    if case .unknownCommand = error {
+        // В отличие от голого запуска, здесь есть что сказать: команда
+        // была, просто не та.
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        printUsage(asError: true)
+        exit(1)
+    }
+    fail("\(error)")
 } catch {
     fail("\(error)")
 }

@@ -6,20 +6,21 @@ private final class МолчаливыйРестартер: DockRestarting {
     func restart() throws {}
 }
 
-private func превьюДвижок(_ store: DockPreferenceStore) throws -> (DockEngine, URL) {
+private func превьюДвижок(_ store: DockPreferenceStore) throws -> (DockEngine, DockBackup, URL) {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-preview-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let backup = DockBackup(directory: dir)
     let engine = DockEngine(
         store: store,
-        backup: DockBackup(directory: dir),
+        backup: backup,
         restarter: МолчаливыйРестартер()
     )
-    return (engine, dir)
+    return (engine, backup, dir)
 }
 
 @Test func предпросмотрПоказываетРезультатПрименения() throws {
-    let (engine, dir) = try превьюДвижок(fixtureStore())
+    let (engine, _, dir) = try превьюДвижок(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     var target = try engine.read()
@@ -38,7 +39,7 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
 @Test func предпросмотрНеТрогаетИсходныйСтор() throws {
     let store = try fixtureStore()
     let before = try DockReader(store: store).read()
-    let (engine, dir) = try превьюДвижок(store)
+    let (engine, _, dir) = try превьюДвижок(store)
     defer { try? FileManager.default.removeItem(at: dir) }
 
     var target = try engine.read()
@@ -51,7 +52,7 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
 /// Пропущенная настройка означает «не трогать», и предпросмотр обязан
 /// показывать её сохранённой, а не сброшенной в дефолт.
 @Test func предпросмотрСохраняетПропущенныеНастройки() throws {
-    let (engine, dir) = try превьюДвижок(fixtureStore())
+    let (engine, _, dir) = try превьюДвижок(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let preview = try engine.preview(DockState(apps: [], settings: DockSettings()))
@@ -61,10 +62,20 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
 
 /// Тот же гейт, что и в `apply`: непонятный домен запрещает даже предпросмотр.
 @Test func предпросмотрПадаетНаНечитаемомДомене() throws {
-    let (engine, dir) = try превьюДвижок(InMemoryDockStore([DockKey.tilesize: "большой"]))
+    let (engine, _, dir) = try превьюДвижок(InMemoryDockStore([DockKey.tilesize: "большой"]))
     defer { try? FileManager.default.removeItem(at: dir) }
 
     #expect(throws: DockReadError.self) {
         try engine.preview(DockState(apps: [], settings: DockSettings()))
     }
+}
+
+/// Второе свойство предпросмотра: он не создаёт и не трогает бэкап,
+/// это исключительно дело `apply`.
+@Test func предпросмотрНеТрогаетБэкап() throws {
+    let (engine, backup, dir) = try превьюДвижок(fixtureStore())
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    _ = try engine.preview(DockState(apps: [], settings: DockSettings()))
+    #expect(backup.exists == false)
 }

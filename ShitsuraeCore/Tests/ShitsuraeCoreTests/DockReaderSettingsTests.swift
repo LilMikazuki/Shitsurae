@@ -59,6 +59,12 @@ func fixtureStore() throws -> InMemoryDockStore {
     }
 }
 
+/// Текст видит пользователь, поэтому закреплён дословно.
+@Test func текстНеподдерживаемогоЗначенияЗакреплён() {
+    #expect("\(DockReadError.unsupportedValue(key: "orientation", value: "diagonal"))"
+        == "Key \"orientation\" holds an unsupported value: diagonal.")
+}
+
 /// Пропускает словарь через сериализацию plist, чтобы получить те же
 /// объекты (`CFBoolean` vs `CFNumber`), что и боевой стор из живого домена —
 /// просто `true`/`1` в `[String: Any]` этого различия не гарантируют.

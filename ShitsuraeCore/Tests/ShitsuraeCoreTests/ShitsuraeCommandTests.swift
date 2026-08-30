@@ -90,6 +90,14 @@ import Testing
     #expect(try ShitsuraeCommand.parse(["restore"]) == .restore)
 }
 
+/// Подсказка — единственное место, где пользователь узнаёт о команде,
+/// которую не набрал; пропавшая из текста команда была бы незаметна.
+@Test func подсказкаНазываетКаждуюКоманду() {
+    for name in ["dump", "backup", "apply", "restore", "--help"] {
+        #expect(ShitsuraeCommand.usage.contains(name))
+    }
+}
+
 /// `restore` разрушительнее `apply`: он затирает раскладку целиком.
 /// Молча съеденный аргумент здесь стоил бы дороже всего.
 @Test func мусорПослеВосстановленияОтвергается() {
