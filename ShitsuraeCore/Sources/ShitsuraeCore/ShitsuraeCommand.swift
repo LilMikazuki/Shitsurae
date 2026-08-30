@@ -71,7 +71,9 @@ public enum ShitsuraeCommand: Equatable, Sendable {
             return .backup
 
         case "apply":
-            guard let file = rest.first else { throw CommandParseError.missingFile }
+            guard let file = rest.first, !file.hasPrefix("-") else {
+                throw CommandParseError.missingFile
+            }
             switch Array(rest.dropFirst()) {
             case []: return .apply(file: file, dryRun: false)
             case ["--dry-run"]: return .apply(file: file, dryRun: true)

@@ -60,3 +60,20 @@ import Testing
     #expect("\(CommandParseError.unrecognizedArguments(command: "apply", arguments: ["--dryrun"], usage: "apply <file> [--dry-run]"))"
         == "Unrecognized argument(s) for apply: --dryrun. Usage: apply <file> [--dry-run]")
 }
+
+/// `--help` отвергает мусор так же, как остальные команды. Это осознанное
+/// расхождение с прежним поведением, где хвостовые аргументы молча
+/// игнорировались: молча съеденный аргумент — ровно тот класс дефекта,
+/// из-за которого `--dryrun` когда-то выполнял настоящее применение.
+@Test func подсказкаОтвергаетХвостовыеАргументы() {
+    #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["--help", "extra"]) }
+    #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["-h", "junk"]) }
+}
+
+/// Забытое имя файла не должно съедаться флагом: иначе `apply --dry-run`
+/// уходит на путь настоящего применения и спасает только то, что файла
+/// с таким именем не существует.
+@Test func флагВместоИмениФайлаЭтоОтсутствующийФайл() {
+    #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "--dry-run"]) }
+    #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "-h"]) }
+}
