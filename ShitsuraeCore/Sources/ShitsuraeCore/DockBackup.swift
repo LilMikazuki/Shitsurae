@@ -2,6 +2,8 @@ import Foundation
 
 public enum DockBackupError: Error, Equatable {
     case exportFailed(status: Int32)
+    /// `defaults export` отчитался кодом 0, но по факту не создал пригодный бэкап.
+    case exportProducedInvalidFile
 }
 
 /// Полный экспорт домена `com.apple.dock` — страховка на случай,
@@ -25,7 +27,7 @@ public struct DockBackup {
     }
 
     public var exists: Bool {
-        FileManager.default.fileExists(atPath: backupURL.path)
+        Self.isValidBackup(at: backupURL)
     }
 
     /// Возвращает `true`, если бэкап создан этим вызовом,
@@ -45,6 +47,21 @@ public struct DockBackup {
         guard process.terminationStatus == 0 else {
             throw DockBackupError.exportFailed(status: process.terminationStatus)
         }
+        guard Self.isValidBackup(at: backupURL) else {
+            throw DockBackupError.exportProducedInvalidFile
+        }
         return true
+    }
+
+    /// `defaults export` возвращает код завершения 0 даже когда ничего не записал:
+    /// каталог назначения недоступен на запись, путь назначения — сам каталог,
+    /// или домен не существует (тогда пишется пустой plist). Поэтому валидность
+    /// бэкапа проверяем по содержимому файла, а не по коду завершения процесса.
+    private static func isValidBackup(at url: URL) -> Bool {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return false }
+        guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil)
+        else { return false }
+        guard let dict = plist as? [String: Any] else { return false }
+        return !dict.isEmpty
     }
 }

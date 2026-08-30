@@ -40,3 +40,32 @@ private func временнаяПапка() throws -> URL {
     let path = DockBackup.defaultDirectory.path
     #expect(path.hasSuffix("Library/Application Support/Shitsurae/backup"))
 }
+
+@Test func экспортВНедоступныйКаталогБросаетОшибкуВместоTrue() throws {
+    let dir = try временнаяПапка()
+    defer {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+        try? FileManager.default.removeItem(at: dir)
+    }
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+
+    let backup = DockBackup(directory: dir)
+    #expect(throws: DockBackupError.self) {
+        try backup.createIfNeeded()
+    }
+}
+
+@Test func нулевойБайтовыйФайлНеСчитаетсяСуществующимБэкапом() throws {
+    let dir = try временнаяПапка()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let backup = DockBackup(directory: dir)
+    FileManager.default.createFile(atPath: backup.backupURL.path, contents: Data())
+
+    #expect(backup.exists == false)
+    #expect(try backup.createIfNeeded() == true)
+    #expect(backup.exists == true)
+
+    let data = try Data(contentsOf: backup.backupURL)
+    #expect(!data.isEmpty)
+}
