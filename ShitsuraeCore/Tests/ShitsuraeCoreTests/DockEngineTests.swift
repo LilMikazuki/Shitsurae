@@ -15,8 +15,8 @@ private final class FakeRestarter: DockRestarting {
     }
 
     func restart() throws {
-        if let error = errorToThrow { throw error }
         lock.withLock { _restarts += 1 }
+        if let error = errorToThrow { throw error }
     }
 }
 
@@ -147,4 +147,24 @@ private func временнаяПапка() throws -> URL {
     // запись и бэкап сделаны, применить не удалось — но не потеряно.
     #expect(try engine.read().apps.count == 1)
     #expect(backup.exists == true)
+}
+
+/// `restarts` считает попытки, а не успехи: провалившийся перезапуск —
+/// это всё равно предпринятый перезапуск, и тест на путь «записано,
+/// но не применено» опирается на то, что попытка была.
+@Test func счётчикРестартовСчитаетПопыткиАНеУспехи() throws {
+    let dir = try временнаяПапка()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let restarter = FakeRestarter()
+    restarter.errorToThrow = .dockProcessNotFound
+    let engine = DockEngine(
+        store: try fixtureStore(),
+        backup: DockBackup(directory: dir),
+        restarter: restarter)
+
+    #expect(throws: DockRestartError.dockProcessNotFound) {
+        try engine.apply(try engine.read())
+    }
+    #expect(restarter.restarts == 1)
 }
