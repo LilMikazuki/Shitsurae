@@ -11,6 +11,10 @@ let package = Package(
     targets: [
         .target(name: "ShitsuraeCore"),
         .executableTarget(name: "shitsurae-cli", dependencies: ["ShitsuraeCore"]),
-        .testTarget(name: "ShitsuraeCoreTests", dependencies: ["ShitsuraeCore"]),
+        .testTarget(
+            name: "ShitsuraeCoreTests",
+            dependencies: ["ShitsuraeCore"],
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )
