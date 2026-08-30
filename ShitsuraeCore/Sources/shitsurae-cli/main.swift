@@ -79,6 +79,21 @@ case let .apply(file, dryRun):
         fail("Failed to apply: \(error)")
     }
 
+case .restore:
+    do {
+        let backup = DockBackup(directory: DockBackup.defaultDirectory)
+        try backup.restore()
+        try DockRestarter().restart()
+        print("Dock restored from \(backup.backupURL.path)")
+    } catch let error as DockRestartError {
+        fail("""
+        The Dock domain was restored, but the Dock did not restart: \(error)
+        Run `killall Dock` to finish applying it.
+        """)
+    } catch {
+        fail("Failed to restore: \(error)")
+    }
+
 case .help:
     printUsage(asError: false)
 }

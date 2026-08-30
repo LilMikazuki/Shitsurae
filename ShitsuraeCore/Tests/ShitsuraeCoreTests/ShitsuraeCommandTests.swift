@@ -77,3 +77,17 @@ import Testing
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "--dry-run"]) }
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "-h"]) }
 }
+
+@Test func разбираетВосстановление() throws {
+    #expect(try ShitsuraeCommand.parse(["restore"]) == .restore)
+}
+
+/// `restore` разрушительнее `apply`: он затирает раскладку целиком.
+/// Молча съеденный аргумент здесь стоил бы дороже всего.
+@Test func мусорПослеВосстановленияОтвергается() {
+    for junk in ["--dryrun", "--dry-run", "x"] {
+        #expect(throws: CommandParseError.self) {
+            try ShitsuraeCommand.parse(["restore", junk])
+        }
+    }
+}

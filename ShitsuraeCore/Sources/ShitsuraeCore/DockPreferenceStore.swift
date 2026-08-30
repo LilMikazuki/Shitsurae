@@ -13,22 +13,22 @@ protocol DockPreferenceStore: AnyObject, Sendable {
 /// Через CFPreferences, а не правкой plist-файла: иначе `cfprefsd`
 /// перезапишет наши изменения содержимым своего кеша.
 final class CFPreferencesDockStore: DockPreferenceStore {
-    private var domain: CFString {
-        DockKey.domain as CFString
+    private let domain: String
+
+    init(domain: String = DockKey.domain) {
+        self.domain = domain
     }
 
-    init() {}
-
     func value(forKey key: String) -> Any? {
-        CFPreferencesCopyAppValue(key as CFString, domain)
+        CFPreferencesCopyAppValue(key as CFString, domain as CFString)
     }
 
     func setValue(_ value: Any?, forKey key: String) {
-        CFPreferencesSetAppValue(key as CFString, value as CFPropertyList?, domain)
+        CFPreferencesSetAppValue(key as CFString, value as CFPropertyList?, domain as CFString)
     }
 
     @discardableResult func synchronize() -> Bool {
-        CFPreferencesAppSynchronize(domain)
+        CFPreferencesAppSynchronize(domain as CFString)
     }
 }
 

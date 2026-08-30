@@ -35,6 +35,7 @@ public enum ShitsuraeCommand: Equatable, Sendable {
     case dump(json: Bool)
     case backup
     case apply(file: String, dryRun: Bool)
+    case restore
     case help
 
     public static let usage = """
@@ -46,6 +47,8 @@ public enum ShitsuraeCommand: Equatable, Sendable {
       backup                   Create the one-time backup of the Dock domain
       apply <file> [--dry-run] Apply a DockState JSON file; --dry-run prints the
                                result without touching the real Dock
+      restore                  Restore the Dock domain from the backup and
+                               restart the Dock. Fails if no backup exists.
       --help, -h               Print this message
     """
 
@@ -81,6 +84,13 @@ public enum ShitsuraeCommand: Equatable, Sendable {
                 throw CommandParseError.unrecognizedArguments(
                     command: "apply", arguments: extra, usage: "apply <file> [--dry-run]")
             }
+
+        case "restore":
+            guard rest.isEmpty else {
+                throw CommandParseError.unrecognizedArguments(
+                    command: "restore", arguments: rest, usage: "restore")
+            }
+            return .restore
 
         case "--help", "-h":
             guard rest.isEmpty else {

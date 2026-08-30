@@ -32,3 +32,15 @@ exists. Everything below is recoverable from that file:
    `swift run shitsurae-cli dump --json > restored.json` and
    `diff original.json restored.json` to confirm the Dock returned to its
    original state.
+
+## Restoring the original Dock
+
+7. **Restore refuses without a backup** — on a machine with no backup yet,
+   `shitsurae-cli restore` fails with "There is no backup to restore from."
+   and a non-zero exit code.
+8. **Restore actually restores** — run `backup`, rearrange the Dock by hand,
+   then `restore`. The Dock blinks once and comes back as it was.
+9. **The backup survives restoring** — `ls` the backup file afterwards; it is
+   still there, and `restore` can be run a second time.
+10. **Restore rejects stray arguments** — `restore --dryrun` fails with
+    "Unrecognized argument(s)" and does not restore.
