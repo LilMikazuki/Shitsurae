@@ -26,6 +26,30 @@ public struct DockEngine: Sendable {
         try DockReader(store: store).read()
     }
 
+    /// Что случилось бы при `apply`, без единой записи в настоящий домен.
+    ///
+    /// Песочница засевается текущими значениями наших ключей, а не пустотой:
+    /// `DockWriter` намеренно не пишет `nil`-настройки, потому что отсутствие
+    /// значения означает «оставить как есть». На пустой песочнице такая
+    /// настройка выглядела бы сброшенной в дефолт — предпросмотр врал бы ровно
+    /// там, где он нужнее всего.
+    public func preview(_ state: DockState) throws -> DockState {
+        // Тот же гейт, что и в `apply`: не прочитал — не пишу. Без него
+        // предпросмотр отчитался бы об успехе там, где настоящее применение
+        // отказалось бы писать.
+        _ = try read()
+
+        var seed: [String: Any] = [:]
+        for key in DockKey.all {
+            if let value = store.value(forKey: key) {
+                seed[key] = value
+            }
+        }
+        let sandbox = InMemoryDockStore(seed)
+        try DockWriter(store: sandbox).write(state)
+        return try DockReader(store: sandbox).read()
+    }
+
     /// Порядок шагов важен и менять его нельзя.
     public func apply(_ state: DockState) throws {
         // 1. Убеждаемся, что домен нам понятен. Бросит — дальше не идём.
