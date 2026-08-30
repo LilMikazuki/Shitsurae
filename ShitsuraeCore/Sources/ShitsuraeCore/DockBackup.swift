@@ -6,6 +6,17 @@ public enum DockBackupError: Error, Equatable {
     case exportProducedInvalidFile
 }
 
+extension DockBackupError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case let .exportFailed(status):
+            "`defaults export` failed with exit status \(status)."
+        case .exportProducedInvalidFile:
+            "`defaults export` reported success but did not produce a valid backup file."
+        }
+    }
+}
+
 /// Полный экспорт домена `com.apple.dock` — страховка на случай,
 /// если формат plist сменится или запись пойдёт не так.
 /// Делается ровно один раз, перед самым первым применением пресета.

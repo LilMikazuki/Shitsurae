@@ -16,6 +16,17 @@ public enum DockRestartError: Error, Equatable {
     case terminateRefused
 }
 
+extension DockRestartError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .dockProcessNotFound:
+            "The Dock process could not be found, so it could not be restarted."
+        case .terminateRefused:
+            "The Dock process refused to terminate."
+        }
+    }
+}
+
 /// Публичного API у Dock нет: единственный способ применить изменения —
 /// завершить демон, launchd поднимет его заново. Панель при этом моргнёт.
 public final class DockRestarter: DockRestarting {

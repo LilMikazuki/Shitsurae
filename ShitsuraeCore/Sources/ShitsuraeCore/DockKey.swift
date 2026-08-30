@@ -7,4 +7,10 @@ public enum DockKey {
     public static let autohide = "autohide"
     public static let orientation = "orientation"
     public static let showRecents = "show-recents"
+
+    /// Все семь ключей разом — для мест, которым нужен полный набор,
+    /// а не конкретный ключ (например, снятие снимка домена целиком).
+    public static let all: [String] = [
+        apps, tilesize, magnification, largesize, autohide, orientation, showRecents,
+    ]
 }

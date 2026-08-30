@@ -36,8 +36,5 @@ import Testing
     let target = InMemoryDockStore([:])
     DockWriter(store: target).write(state)
     // В фикстуре 20 ключей домена, но нас касаются только свои.
-    #expect(Set(target.snapshot.keys).isSubset(of: [
-        DockKey.apps, DockKey.tilesize, DockKey.magnification, DockKey.largesize,
-        DockKey.autohide, DockKey.orientation, DockKey.showRecents,
-    ]))
+    #expect(Set(target.snapshot.keys).isSubset(of: Set(DockKey.all)))
 }
