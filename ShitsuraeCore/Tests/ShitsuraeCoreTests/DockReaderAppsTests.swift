@@ -79,10 +79,34 @@ private func tile(path: String, bundleId: String, label: String) -> [String: Any
         "tile-data": [:] as [String: Any]
     ]
     let store = InMemoryDockStore([DockKey.apps: [spacer]])
-    #expect(throws: DockReadError.malformedTile(
-        index: 0,
-        reason: "unsupported tile type: small-spacer-tile"
-    )) {
+    #expect(throws: DockReadError.unsupportedTileType(index: 0, tileType: "small-spacer-tile")) {
+        try DockReader(store: store).read()
+    }
+}
+
+/// Разделитель и порча формата должны различаться без разбора строк:
+/// у пользователя с разделителями и у пользователя на новой macOS
+/// разные причины и разные тексты в интерфейсе.
+@Test func разделительИПорчаФорматаЭтоРазныеОшибки() {
+    let spacer: [String: Any] = [
+        "tile-type": "small-spacer-tile",
+        "tile-data": [:] as [String: Any]
+    ]
+    let broken: [String: Any] = ["tile-type": "file-tile"]
+
+    #expect(throws: DockReadError.unsupportedTileType(index: 0, tileType: "small-spacer-tile")) {
+        try DockReader(store: InMemoryDockStore([DockKey.apps: [spacer]])).read()
+    }
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "missing tile-data")) {
+        try DockReader(store: InMemoryDockStore([DockKey.apps: [broken]])).read()
+    }
+}
+
+/// Массив есть, но элемент в нём не словарь — это про элемент, а не про тип
+/// самого ключа, и сообщение обязано называть индекс.
+@Test func элементПриложенийНеСловарьЭтоМалформ() {
+    let store = InMemoryDockStore([DockKey.apps: ["ой"]])
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "tile is not a dictionary")) {
         try DockReader(store: store).read()
     }
 }

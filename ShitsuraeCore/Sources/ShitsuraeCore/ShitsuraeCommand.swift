@@ -63,13 +63,15 @@ public enum ShitsuraeCommand: Equatable, Sendable {
             case ["--json"]: return .dump(json: true)
             default:
                 throw CommandParseError.unrecognizedArguments(
-                    command: "dump", arguments: rest, usage: "dump [--json]")
+                    command: "dump", arguments: rest, usage: "dump [--json]"
+                )
             }
 
         case "backup":
             guard rest.isEmpty else {
                 throw CommandParseError.unrecognizedArguments(
-                    command: "backup", arguments: rest, usage: "backup")
+                    command: "backup", arguments: rest, usage: "backup"
+                )
             }
             return .backup
 
@@ -82,20 +84,23 @@ public enum ShitsuraeCommand: Equatable, Sendable {
             case ["--dry-run"]: return .apply(file: file, dryRun: true)
             case let extra:
                 throw CommandParseError.unrecognizedArguments(
-                    command: "apply", arguments: extra, usage: "apply <file> [--dry-run]")
+                    command: "apply", arguments: extra, usage: "apply <file> [--dry-run]"
+                )
             }
 
         case "restore":
             guard rest.isEmpty else {
                 throw CommandParseError.unrecognizedArguments(
-                    command: "restore", arguments: rest, usage: "restore")
+                    command: "restore", arguments: rest, usage: "restore"
+                )
             }
             return .restore
 
         case "--help", "-h":
             guard rest.isEmpty else {
                 throw CommandParseError.unrecognizedArguments(
-                    command: command, arguments: rest, usage: "--help")
+                    command: command, arguments: rest, usage: "--help"
+                )
             }
             return .help
 

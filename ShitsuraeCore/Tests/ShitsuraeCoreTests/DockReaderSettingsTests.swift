@@ -44,9 +44,17 @@ func fixtureStore() throws -> InMemoryDockStore {
     #expect(try DockReader(store: store).read().settings.orientation == .left)
 }
 
-@Test func неизвестнаяОриентацияЭтоОшибка() {
+@Test func неизвестнаяОриентацияЭтоНераспознанноеЗначение() {
     let store = InMemoryDockStore([DockKey.orientation: "diagonal"])
-    #expect(throws: DockReadError.self) {
+    #expect(throws: DockReadError.unsupportedValue(key: "orientation", value: "diagonal")) {
+        try DockReader(store: store).read()
+    }
+}
+
+/// Не строка — по-прежнему именно неверный тип, а не значение.
+@Test func нестроковаяОриентацияЭтоНеверныйТип() {
+    let store = InMemoryDockStore([DockKey.orientation: 42])
+    #expect(throws: DockReadError.wrongType(key: "orientation", expected: "String")) {
         try DockReader(store: store).read()
     }
 }

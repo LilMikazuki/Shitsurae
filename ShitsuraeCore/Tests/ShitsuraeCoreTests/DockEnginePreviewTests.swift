@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 private final class МолчаливыйРестартер: DockRestarting {
     func restart() throws {}
@@ -13,16 +13,21 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
     let engine = DockEngine(
         store: store,
         backup: DockBackup(directory: dir),
-        restarter: МолчаливыйРестартер())
+        restarter: МолчаливыйРестартер()
+    )
     return (engine, dir)
 }
 
 @Test func предпросмотрПоказываетРезультатПрименения() throws {
-    let (engine, dir) = try превьюДвижок(try fixtureStore())
+    let (engine, dir) = try превьюДвижок(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     var target = try engine.read()
-    target.apps = [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")]
+    target.apps = [DockApp(
+        path: "/Applications/Safari.app",
+        bundleId: "com.apple.Safari",
+        label: "Safari"
+    )]
 
     let preview = try engine.preview(target)
     #expect(preview.apps.count == 1)
@@ -46,7 +51,7 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
 /// Пропущенная настройка означает «не трогать», и предпросмотр обязан
 /// показывать её сохранённой, а не сброшенной в дефолт.
 @Test func предпросмотрСохраняетПропущенныеНастройки() throws {
-    let (engine, dir) = try превьюДвижок(try fixtureStore())
+    let (engine, dir) = try превьюДвижок(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let preview = try engine.preview(DockState(apps: [], settings: DockSettings()))

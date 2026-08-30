@@ -52,18 +52,25 @@ struct DockReader {
 
     private func orientation() throws -> DockOrientation? {
         guard let raw = store.value(forKey: DockKey.orientation) else { return nil }
-        guard let string = raw as? String,
-              let value = DockOrientation(rawValue: string)
-        else {
-            throw DockReadError.wrongType(key: DockKey.orientation, expected: "left|bottom|right")
+        guard let string = raw as? String else {
+            throw DockReadError.wrongType(key: DockKey.orientation, expected: "String")
+        }
+        guard let value = DockOrientation(rawValue: string) else {
+            throw DockReadError.unsupportedValue(key: DockKey.orientation, value: string)
         }
         return value
     }
 
     private func apps() throws -> [DockApp] {
         guard let raw = store.value(forKey: DockKey.apps) else { return [] }
-        guard let tiles = raw as? [[String: Any]] else {
+        guard let rawTiles = raw as? [Any] else {
             throw DockReadError.wrongType(key: DockKey.apps, expected: "Array")
+        }
+        let tiles: [[String: Any]] = try rawTiles.enumerated().map { index, element in
+            guard let tile = element as? [String: Any] else {
+                throw DockReadError.malformedTile(index: index, reason: "tile is not a dictionary")
+            }
+            return tile
         }
         return try tiles.enumerated().map { index, tile in
             guard let tileType = tile["tile-type"] as? String else {
@@ -75,10 +82,7 @@ struct DockReader {
             // parse or round-trip it yet, so fail with a message that names
             // what's actually there instead of claiming a path is missing.
             guard tileType == "file-tile" else {
-                throw DockReadError.malformedTile(
-                    index: index,
-                    reason: "unsupported tile type: \(tileType)"
-                )
+                throw DockReadError.unsupportedTileType(index: index, tileType: tileType)
             }
             guard let data = tile["tile-data"] as? [String: Any] else {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-data")

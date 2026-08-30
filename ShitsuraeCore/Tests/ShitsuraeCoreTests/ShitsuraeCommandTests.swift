@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 @Test func разбираетПростыеКоманды() throws {
     #expect(try ShitsuraeCommand.parse(["dump"]) == .dump(json: false))
@@ -11,7 +11,10 @@ import Testing
 }
 
 @Test func разбираетПрименение() throws {
-    #expect(try ShitsuraeCommand.parse(["apply", "s.json"]) == .apply(file: "s.json", dryRun: false))
+    #expect(try ShitsuraeCommand.parse(["apply", "s.json"]) == .apply(
+        file: "s.json",
+        dryRun: false
+    ))
     #expect(try ShitsuraeCommand.parse(["apply", "s.json", "--dry-run"])
         == .apply(file: "s.json", dryRun: true))
 }
@@ -57,8 +60,10 @@ import Testing
 @Test func текстыОшибокРазбораЗакреплены() {
     #expect("\(CommandParseError.missingFile)"
         == "apply requires a file argument. Usage: apply <file> [--dry-run]")
-    #expect("\(CommandParseError.unrecognizedArguments(command: "apply", arguments: ["--dryrun"], usage: "apply <file> [--dry-run]"))"
-        == "Unrecognized argument(s) for apply: --dryrun. Usage: apply <file> [--dry-run]")
+    #expect(
+        "\(CommandParseError.unrecognizedArguments(command: "apply", arguments: ["--dryrun"], usage: "apply <file> [--dry-run]"))"
+            == "Unrecognized argument(s) for apply: --dryrun. Usage: apply <file> [--dry-run]"
+    )
 }
 
 /// `--help` отвергает мусор так же, как остальные команды. Это осознанное
@@ -74,7 +79,10 @@ import Testing
 /// уходит на путь настоящего применения и спасает только то, что файла
 /// с таким именем не существует.
 @Test func флагВместоИмениФайлаЭтоОтсутствующийФайл() {
-    #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "--dry-run"]) }
+    #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse([
+        "apply",
+        "--dry-run"
+    ]) }
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "-h"]) }
 }
 

@@ -60,5 +60,7 @@ final class InMemoryDockStore: DockPreferenceStore {
         lock.withLock { storage[key] = value }
     }
 
-    @discardableResult func synchronize() -> Bool { true }
+    @discardableResult func synchronize() -> Bool {
+        true
+    }
 }

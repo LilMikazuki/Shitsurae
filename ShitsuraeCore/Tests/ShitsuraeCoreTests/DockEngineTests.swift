@@ -7,7 +7,9 @@ private final class FakeRestarter: DockRestarting {
     private nonisolated(unsafe) var _restarts = 0
     private nonisolated(unsafe) var _errorToThrow: DockRestartError?
 
-    var restarts: Int { lock.withLock { _restarts } }
+    var restarts: Int {
+        lock.withLock { _restarts }
+    }
 
     var errorToThrow: DockRestartError? {
         get { lock.withLock { _errorToThrow } }
@@ -16,7 +18,9 @@ private final class FakeRestarter: DockRestarting {
 
     func restart() throws {
         lock.withLock { _restarts += 1 }
-        if let error = errorToThrow { throw error }
+        if let error = errorToThrow {
+            throw error
+        }
     }
 }
 
@@ -158,13 +162,14 @@ private func временнаяПапка() throws -> URL {
 
     let restarter = FakeRestarter()
     restarter.errorToThrow = .dockProcessNotFound
-    let engine = DockEngine(
-        store: try fixtureStore(),
+    let engine = try DockEngine(
+        store: fixtureStore(),
         backup: DockBackup(directory: dir),
-        restarter: restarter)
+        restarter: restarter
+    )
 
     #expect(throws: DockRestartError.dockProcessNotFound) {
-        try engine.apply(try engine.read())
+        try engine.apply(engine.read())
     }
     #expect(restarter.restarts == 1)
 }
