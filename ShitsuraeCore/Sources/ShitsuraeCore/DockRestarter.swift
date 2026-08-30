@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Перезапуск Dock вынесен за протокол, чтобы тесты не убивали настоящий Dock.
-public protocol DockRestarting {
+public protocol DockRestarting: Sendable {
     func restart() throws
 }
 

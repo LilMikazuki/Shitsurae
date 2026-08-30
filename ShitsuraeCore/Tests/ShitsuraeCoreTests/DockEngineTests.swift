@@ -3,14 +3,20 @@ import Foundation
 import Testing
 
 private final class FakeRestarter: DockRestarting {
-    var restarts = 0
-    var errorToThrow: DockRestartError?
+    private let lock = NSLock()
+    private nonisolated(unsafe) var _restarts = 0
+    private nonisolated(unsafe) var _errorToThrow: DockRestartError?
+
+    var restarts: Int { lock.withLock { _restarts } }
+
+    var errorToThrow: DockRestartError? {
+        get { lock.withLock { _errorToThrow } }
+        set { lock.withLock { _errorToThrow = newValue } }
+    }
 
     func restart() throws {
-        restarts += 1
-        if let errorToThrow {
-            throw errorToThrow
-        }
+        if let error = errorToThrow { throw error }
+        lock.withLock { _restarts += 1 }
     }
 }
 

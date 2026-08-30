@@ -20,7 +20,7 @@ extension DockBackupError: CustomStringConvertible {
 /// Полный экспорт домена `com.apple.dock` — страховка на случай,
 /// если формат plist сменится или запись пойдёт не так.
 /// Делается ровно один раз, перед самым первым применением пресета.
-public struct DockBackup {
+public struct DockBackup: Sendable {
     private let directory: URL
 
     public init(directory: URL) {

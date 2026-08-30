@@ -24,3 +24,24 @@ import Testing
     #expect(CFPreferencesDockStore.domainName == "com.apple.dock")
     #expect(store.value(forKey: DockKey.apps) != nil)
 }
+
+/// Тест существует ради компиляции: если стор перестанет быть `Sendable`,
+/// этот файл не соберётся, и мы узнаем об этом здесь, а не в приложении.
+@Test func сторПересекаетГраницуАктора() async {
+    let store = InMemoryDockStore([DockKey.autohide: true])
+    let task = Task.detached {
+        store.setValue(false, forKey: DockKey.autohide)
+        return store.value(forKey: DockKey.autohide) as? Bool
+    }
+    #expect(await task.value == false)
+}
+
+@Test func одновременнаяЗаписьНеРоняетСтор() async {
+    let store = InMemoryDockStore([:])
+    await withTaskGroup(of: Void.self) { group in
+        for index in 0 ..< 50 {
+            group.addTask { store.setValue(index, forKey: "key-\(index)") }
+        }
+    }
+    #expect(store.snapshot.count == 50)
+}

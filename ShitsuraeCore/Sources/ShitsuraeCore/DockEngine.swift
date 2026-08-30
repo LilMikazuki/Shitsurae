@@ -2,7 +2,7 @@ import Foundation
 
 /// Единственная точка, через которую Shitsurae меняет Dock.
 /// Держит правило спеки: не смог прочитать — не имеешь права писать.
-public struct DockEngine {
+public struct DockEngine: Sendable {
     private let store: DockPreferenceStore
     private let backup: DockBackup
     private let restarter: DockRestarting
