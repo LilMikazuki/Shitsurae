@@ -65,21 +65,32 @@ public struct DockReader {
             throw DockReadError.wrongType(key: DockKey.apps, expected: "Array")
         }
         return try tiles.enumerated().map { index, tile in
+            guard let tileType = tile["tile-type"] as? String else {
+                throw DockReadError.malformedTile(index: index, reason: "missing tile-type")
+            }
+            // Dock lets users place spacer tiles directly in `persistent-apps`
+            // (`spacer-tile`, `small-spacer-tile`, `flex-spacer-tile`). That's a
+            // real, current Dock feature, not format corruption — but we don't
+            // parse or round-trip it yet, so fail with a message that names
+            // what's actually there instead of claiming a path is missing.
+            guard tileType == "file-tile" else {
+                throw DockReadError.malformedTile(index: index, reason: "unsupported tile type: \(tileType)")
+            }
             guard let data = tile["tile-data"] as? [String: Any] else {
-                throw DockReadError.malformedTile(index: index, reason: "нет tile-data")
+                throw DockReadError.malformedTile(index: index, reason: "missing tile-data")
             }
             // Путь лежит percent-кодированной URL-строкой; `URL.path` снимает кодирование.
             guard let fileData = data["file-data"] as? [String: Any],
                   let urlString = fileData["_CFURLString"] as? String,
                   let path = URL(string: urlString)?.path,
                   !path.isEmpty else {
-                throw DockReadError.malformedTile(index: index, reason: "нет пути")
+                throw DockReadError.malformedTile(index: index, reason: "missing path")
             }
             guard let label = data["file-label"] as? String else {
-                throw DockReadError.malformedTile(index: index, reason: "нет file-label")
+                throw DockReadError.malformedTile(index: index, reason: "missing file-label")
             }
             guard let bundleId = data["bundle-identifier"] as? String else {
-                throw DockReadError.malformedTile(index: index, reason: "нет bundle-identifier")
+                throw DockReadError.malformedTile(index: index, reason: "missing bundle-identifier")
             }
             return DockApp(path: path, bundleId: bundleId, label: label)
         }

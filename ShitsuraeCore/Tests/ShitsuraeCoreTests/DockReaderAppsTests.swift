@@ -61,7 +61,7 @@ private func tile(path: String, bundleId: String, label: String) -> [String: Any
         ] as [String: Any],
     ]
     let store = InMemoryDockStore([DockKey.apps: [broken]])
-    #expect(throws: DockReadError.malformedTile(index: 0, reason: "нет bundle-identifier")) {
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "missing bundle-identifier")) {
         try DockReader(store: store).read()
     }
 }
@@ -69,6 +69,27 @@ private func tile(path: String, bundleId: String, label: String) -> [String: Any
 @Test func приложенияНеМассивЭтоОшибка() {
     let store = InMemoryDockStore([DockKey.apps: "ой"])
     #expect(throws: DockReadError.wrongType(key: "persistent-apps", expected: "Array")) {
+        try DockReader(store: store).read()
+    }
+}
+
+@Test func тайлСпейсераДаётПонятнуюОшибку() {
+    let spacer: [String: Any] = [
+        "tile-type": "small-spacer-tile",
+        "tile-data": [:] as [String: Any],
+    ]
+    let store = InMemoryDockStore([DockKey.apps: [spacer]])
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "unsupported tile type: small-spacer-tile")) {
+        try DockReader(store: store).read()
+    }
+}
+
+@Test func тайлБезTileTypeЛомаетЧтение() {
+    let noType: [String: Any] = [
+        "tile-data": [:] as [String: Any],
+    ]
+    let store = InMemoryDockStore([DockKey.apps: [noType]])
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "missing tile-type")) {
         try DockReader(store: store).read()
     }
 }
