@@ -34,7 +34,7 @@ public struct DockSettings: Equatable, Codable, Sendable {
 }
 
 /// Полный снимок того, что Shitsurae умеет читать и писать.
-public struct DockState: Equatable, Sendable {
+public struct DockState: Equatable, Codable, Sendable {
     public var apps: [DockApp]
     public var settings: DockSettings
 
