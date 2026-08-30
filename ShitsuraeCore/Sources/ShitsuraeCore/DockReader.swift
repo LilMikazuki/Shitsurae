@@ -23,7 +23,10 @@ public struct DockReader {
 
     private func number(_ key: String) throws -> Double? {
         guard let raw = store.value(forKey: key) else { return nil }
-        guard let value = raw as? NSNumber else {
+        // `CFBoolean` — тоже подкласс `NSNumber` (`__NSCFBoolean`), поэтому
+        // одного `as? NSNumber` мало: булево значение под числовым ключом
+        // молча превратилось бы в 0.0/1.0. Явно исключаем CFBoolean.
+        guard !isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Number")
         }
         return value.doubleValue
@@ -31,10 +34,20 @@ public struct DockReader {
 
     private func bool(_ key: String) throws -> Bool? {
         guard let raw = store.value(forKey: key) else { return nil }
-        guard let value = raw as? NSNumber else {
+        // Симметрично: `as? NSNumber` пропустил бы и обычный CFNumber
+        // (0 или 1) под булевым ключом. Требуем, чтобы значение и правда
+        // было CFBoolean, а не числом, которое лишь похоже на него.
+        guard isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Bool")
         }
         return value.boolValue
+    }
+
+    /// `NSNumber` — общий Objective-C мост и для `CFBoolean`, и для
+    /// `CFNumber`: приведение `as? NSNumber` их не различает. Различаем
+    /// по CF type id — единственный надёжный способ отличить эти два случая.
+    private func isCFBoolean(_ value: Any) -> Bool {
+        CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
     }
 
     private func orientation() throws -> DockOrientation? {

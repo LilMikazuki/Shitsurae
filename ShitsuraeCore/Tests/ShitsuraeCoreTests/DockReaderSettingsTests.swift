@@ -48,3 +48,25 @@ func fixtureStore() throws -> InMemoryDockStore {
         try DockReader(store: store).read()
     }
 }
+
+/// Пропускает словарь через сериализацию plist, чтобы получить те же
+/// объекты (`CFBoolean` vs `CFNumber`), что и боевой стор из живого домена —
+/// просто `true`/`1` в `[String: Any]` этого различия не гарантируют.
+private func decodedPlistValues(_ dict: [String: Any]) throws -> [String: Any] {
+    let data = try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
+    return try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+}
+
+@Test func булевоЗначениеПодЧисловымКлючомЛомаетЧтение() throws {
+    let store = InMemoryDockStore(try decodedPlistValues([DockKey.tilesize: true]))
+    #expect(throws: DockReadError.wrongType(key: "tilesize", expected: "Number")) {
+        try DockReader(store: store).read()
+    }
+}
+
+@Test func числоПодБулевымКлючомЛомаетЧтение() throws {
+    let store = InMemoryDockStore(try decodedPlistValues([DockKey.autohide: 1]))
+    #expect(throws: DockReadError.wrongType(key: "autohide", expected: "Bool")) {
+        try DockReader(store: store).read()
+    }
+}
