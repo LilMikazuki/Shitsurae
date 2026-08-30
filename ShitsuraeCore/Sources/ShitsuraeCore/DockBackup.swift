@@ -54,7 +54,7 @@ public struct DockBackup: Sendable {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        process.arguments = ["export", CFPreferencesDockStore.domainName, backupURL.path]
+        process.arguments = ["export", DockKey.domain, backupURL.path]
         try process.run()
         process.waitUntilExit()
 

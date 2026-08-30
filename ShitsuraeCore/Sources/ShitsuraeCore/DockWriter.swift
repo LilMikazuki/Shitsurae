@@ -3,14 +3,14 @@ import Foundation
 /// `DockState` -> домен `com.apple.dock`.
 /// Пишет только те ключи, значения которых есть: `nil` означает,
 /// что ключа в домене не было и добавлять его мы не имеем права.
-public struct DockWriter {
+struct DockWriter {
     private let store: DockPreferenceStore
 
-    public init(store: DockPreferenceStore) {
+    init(store: DockPreferenceStore) {
         self.store = store
     }
 
-    public func write(_ state: DockState) throws {
+    func write(_ state: DockState) throws {
         store.setValue(state.apps.map(Self.tile(for:)), forKey: DockKey.apps)
         set(state.settings.tilesize, DockKey.tilesize)
         set(state.settings.largesize, DockKey.largesize)
@@ -28,7 +28,7 @@ public struct DockWriter {
 
     /// Минимальный тайл. `book`, `GUID`, `dock-extra` и прочее Dock достроит сам
     /// при первом же сохранении — они машинно-зависимые и переносу не подлежат.
-    public static func tile(for app: DockApp) -> [String: Any] {
+    static func tile(for app: DockApp) -> [String: Any] {
         let url = URL(fileURLWithPath: app.path, isDirectory: true)
         return [
             "tile-type": "file-tile",

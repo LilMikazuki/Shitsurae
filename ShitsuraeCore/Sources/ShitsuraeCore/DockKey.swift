@@ -1,5 +1,16 @@
 /// Имена ключей домена `com.apple.dock`. Больше нигде строковых литералов ключей быть не должно.
 public enum DockKey {
+    /// Имя домена настроек Dock.
+    ///
+    /// Живёт здесь, а не в `CFPreferencesDockStore`, по требованию компилятора:
+    /// публичное значение по умолчанию не может ссылаться на internal-объявление,
+    /// а `DockBackup.init(directory:domain:)` публичен и берёт отсюда дефолт.
+    ///
+    /// Это НЕ то же самое, что `DockRestarter.bundleIdentifier`: macOS
+    /// использует одну строку и для домена настроек, и для bundle id процесса
+    /// по соглашению, а не по гарантии. Константы намеренно разные.
+    public static let domain = "com.apple.dock"
+
     public static let apps = "persistent-apps"
     public static let tilesize = "tilesize"
     public static let magnification = "magnification"

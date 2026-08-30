@@ -7,7 +7,7 @@ public struct DockEngine: Sendable {
     private let backup: DockBackup
     private let restarter: DockRestarting
 
-    public init(store: DockPreferenceStore, backup: DockBackup, restarter: DockRestarting) {
+    init(store: DockPreferenceStore, backup: DockBackup, restarter: DockRestarting) {
         self.store = store
         self.backup = backup
         self.restarter = restarter

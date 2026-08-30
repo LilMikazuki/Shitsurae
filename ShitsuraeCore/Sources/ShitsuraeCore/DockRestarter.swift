@@ -30,7 +30,7 @@ extension DockRestartError: CustomStringConvertible {
 /// Публичного API у Dock нет: единственный способ применить изменения —
 /// завершить демон, launchd поднимет его заново. Панель при этом моргнёт.
 public final class DockRestarter: DockRestarting {
-    /// Тот же самый идентификатор, что и `CFPreferencesDockStore.domainName`,
+    /// Тот же самый идентификатор, что и `DockKey.domain`,
     /// но это отдельная константа: macOS использует одну строку и для домена
     /// настроек, и для bundle id процесса по соглашению, а не по гарантии.
     /// Если один когда-нибудь поменяют по причине, касающейся только

@@ -3,14 +3,14 @@ import Foundation
 /// Домен `com.apple.dock` -> `DockState`.
 /// Отсутствие ключа трактуется как значение по умолчанию и даёт `nil`.
 /// Неверный тип — ошибка: значит формат сменился и писать нельзя.
-public struct DockReader {
+struct DockReader {
     private let store: DockPreferenceStore
 
-    public init(store: DockPreferenceStore) {
+    init(store: DockPreferenceStore) {
         self.store = store
     }
 
-    public func read() throws -> DockState {
+    func read() throws -> DockState {
         var settings = DockSettings()
         settings.tilesize = try number(DockKey.tilesize)
         settings.largesize = try number(DockKey.largesize)

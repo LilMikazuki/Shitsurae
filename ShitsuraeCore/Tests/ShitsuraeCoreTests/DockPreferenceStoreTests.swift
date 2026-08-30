@@ -21,7 +21,7 @@ import Testing
 
 @Test func боевойСторЧитаетЖивойДомен() {
     let store = CFPreferencesDockStore()
-    #expect(CFPreferencesDockStore.domainName == "com.apple.dock")
+    #expect(DockKey.domain == "com.apple.dock")
     #expect(store.value(forKey: DockKey.apps) != nil)
 }
 
