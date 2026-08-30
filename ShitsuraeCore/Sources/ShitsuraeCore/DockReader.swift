@@ -59,8 +59,29 @@ public struct DockReader {
         return value
     }
 
-    /// Реализуется в задаче 4. Пока пустой список, чтобы задача 3 собиралась.
     private func apps() throws -> [DockApp] {
-        []
+        guard let raw = store.value(forKey: DockKey.apps) else { return [] }
+        guard let tiles = raw as? [[String: Any]] else {
+            throw DockReadError.wrongType(key: DockKey.apps, expected: "Array")
+        }
+        return try tiles.enumerated().map { index, tile in
+            guard let data = tile["tile-data"] as? [String: Any] else {
+                throw DockReadError.malformedTile(index: index, reason: "нет tile-data")
+            }
+            // Путь лежит percent-кодированной URL-строкой; `URL.path` снимает кодирование.
+            guard let fileData = data["file-data"] as? [String: Any],
+                  let urlString = fileData["_CFURLString"] as? String,
+                  let path = URL(string: urlString)?.path,
+                  !path.isEmpty else {
+                throw DockReadError.malformedTile(index: index, reason: "нет пути")
+            }
+            guard let label = data["file-label"] as? String else {
+                throw DockReadError.malformedTile(index: index, reason: "нет file-label")
+            }
+            guard let bundleId = data["bundle-identifier"] as? String else {
+                throw DockReadError.malformedTile(index: index, reason: "нет bundle-identifier")
+            }
+            return DockApp(path: path, bundleId: bundleId, label: label)
+        }
     }
 }
