@@ -18,7 +18,7 @@ public struct DockReader {
         settings.autohide = try bool(DockKey.autohide)
         settings.showRecents = try bool(DockKey.showRecents)
         settings.orientation = try orientation()
-        return DockState(apps: try apps(), settings: settings)
+        return try DockState(apps: apps(), settings: settings)
     }
 
     private func number(_ key: String) throws -> Double? {
@@ -53,7 +53,8 @@ public struct DockReader {
     private func orientation() throws -> DockOrientation? {
         guard let raw = store.value(forKey: DockKey.orientation) else { return nil }
         guard let string = raw as? String,
-              let value = DockOrientation(rawValue: string) else {
+              let value = DockOrientation(rawValue: string)
+        else {
             throw DockReadError.wrongType(key: DockKey.orientation, expected: "left|bottom|right")
         }
         return value
@@ -74,7 +75,10 @@ public struct DockReader {
             // parse or round-trip it yet, so fail with a message that names
             // what's actually there instead of claiming a path is missing.
             guard tileType == "file-tile" else {
-                throw DockReadError.malformedTile(index: index, reason: "unsupported tile type: \(tileType)")
+                throw DockReadError.malformedTile(
+                    index: index,
+                    reason: "unsupported tile type: \(tileType)"
+                )
             }
             guard let data = tile["tile-data"] as? [String: Any] else {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-data")
@@ -83,7 +87,8 @@ public struct DockReader {
             guard let fileData = data["file-data"] as? [String: Any],
                   let urlString = fileData["_CFURLString"] as? String,
                   let path = URL(string: urlString)?.path,
-                  !path.isEmpty else {
+                  !path.isEmpty
+            else {
                 throw DockReadError.malformedTile(index: index, reason: "missing path")
             }
             guard let label = data["file-label"] as? String else {

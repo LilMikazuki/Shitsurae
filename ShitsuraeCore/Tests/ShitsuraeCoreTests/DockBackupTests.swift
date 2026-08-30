@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 private func временнаяПапка() throws -> URL {
     let url = FileManager.default.temporaryDirectory

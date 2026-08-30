@@ -1,0 +1,12 @@
+--swiftversion 6.2
+--indent 4
+--maxwidth 100
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--commas inline
+--exclude .build
+
+# Правило рассчитано на английский camelCase и калечит русские имена тестов:
+# `тайлСобираетсяВФорматеDock` оно превращает в `тайл собирается В формате dock`.
+--disable swiftTestingTestCaseNames

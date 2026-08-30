@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    # macos-26 — arm64-раннер, Xcode 26.6 и SwiftFormat 0.62.1 предустановлены.
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Показать версии инструментов
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          swiftformat --version
+
+      - name: Проверить формат
+        run: swiftformat --lint .
+
+      - name: Собрать
+        working-directory: ShitsuraeCore
+        run: swift build
+
+      - name: Тесты
+        working-directory: ShitsuraeCore
+        run: swift test

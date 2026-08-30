@@ -41,7 +41,8 @@ public final class DockRestarter: DockRestarting {
 
     public func restart() throws {
         let apps = NSRunningApplication.runningApplications(
-            withBundleIdentifier: Self.bundleIdentifier)
+            withBundleIdentifier: Self.bundleIdentifier
+        )
         guard !apps.isEmpty else {
             throw DockRestartError.dockProcessNotFound
         }

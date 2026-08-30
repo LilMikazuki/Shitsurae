@@ -30,11 +30,11 @@ public struct DockWriter {
             "tile-data": [
                 "file-data": [
                     "_CFURLString": url.absoluteString,
-                    "_CFURLStringType": 15,
+                    "_CFURLStringType": 15
                 ],
                 "file-label": app.label,
-                "bundle-identifier": app.bundleId,
-            ] as [String: Any],
+                "bundle-identifier": app.bundleId
+            ] as [String: Any]
         ]
     }
 

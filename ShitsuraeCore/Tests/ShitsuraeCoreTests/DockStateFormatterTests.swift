@@ -1,9 +1,9 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 @Test func выводПеречисляетПриложенияИНастройки() throws {
-    let state = try DockReader(store: try fixtureStore()).read()
+    let state = try DockReader(store: fixtureStore()).read()
     let text = DockStateFormatter.plainText(state)
     #expect(text.contains("Apps (4)"))
     #expect(text.contains("com.apple.apps.launcher"))
@@ -11,7 +11,7 @@ import Testing
 }
 
 @Test func отсутствующиеНастройкиПомеченыКакDefault() throws {
-    let state = try DockReader(store: try fixtureStore()).read()
+    let state = try DockReader(store: fixtureStore()).read()
     let text = DockStateFormatter.plainText(state)
     #expect(text.contains("orientation: (default)"))
 }

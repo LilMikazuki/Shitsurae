@@ -11,6 +11,6 @@ public enum DockKey {
     /// Все семь ключей разом — для мест, которым нужен полный набор,
     /// а не конкретный ключ (например, снятие снимка домена целиком).
     public static let all: [String] = [
-        apps, tilesize, magnification, largesize, autohide, orientation, showRecents,
+        apps, tilesize, magnification, largesize, autohide, orientation, showRecents
     ]
 }

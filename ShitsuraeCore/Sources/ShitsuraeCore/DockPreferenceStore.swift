@@ -17,7 +17,9 @@ public final class CFPreferencesDockStore: DockPreferenceStore {
     /// и Swift 6 отвергает такой глобальный литерал.
     public static let domainName = "com.apple.dock"
 
-    private var domain: CFString { Self.domainName as CFString }
+    private var domain: CFString {
+        Self.domainName as CFString
+    }
 
     public init() {}
 
@@ -42,13 +44,19 @@ public final class InMemoryDockStore: DockPreferenceStore {
         self.storage = storage
     }
 
-    public var snapshot: [String: Any] { storage }
+    public var snapshot: [String: Any] {
+        storage
+    }
 
-    public func value(forKey key: String) -> Any? { storage[key] }
+    public func value(forKey key: String) -> Any? {
+        storage[key]
+    }
 
     public func setValue(_ value: Any?, forKey key: String) {
         storage[key] = value
     }
 
-    @discardableResult public func synchronize() -> Bool { true }
+    @discardableResult public func synchronize() -> Bool {
+        true
+    }
 }

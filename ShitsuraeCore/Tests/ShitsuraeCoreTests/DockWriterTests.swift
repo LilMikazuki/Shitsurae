@@ -1,9 +1,13 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 @Test func тайлСобираетсяВФорматеDock() throws {
-    let app = DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")
+    let app = DockApp(
+        path: "/Applications/Safari.app",
+        bundleId: "com.apple.Safari",
+        label: "Safari"
+    )
     let tile = DockWriter.tile(for: app)
     #expect(tile["tile-type"] as? String == "file-tile")
     let data = try #require(tile["tile-data"] as? [String: Any])
@@ -22,7 +26,7 @@ import Testing
 }
 
 @Test func отсутствующиеНастройкиНеЗаписываются() throws {
-    let state = try DockReader(store: try fixtureStore()).read()
+    let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     DockWriter(store: target).write(state)
     #expect(target.value(forKey: DockKey.orientation) == nil)
@@ -32,7 +36,7 @@ import Testing
 }
 
 @Test func записываетсяТолькоСемьКлючей() throws {
-    let state = try DockReader(store: try fixtureStore()).read()
+    let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     DockWriter(store: target).write(state)
     // В фикстуре 20 ключей домена, но нас касаются только свои.

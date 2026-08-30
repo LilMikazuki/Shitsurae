@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 private final class FakeRestarter: DockRestarting {
     var restarts = 0
@@ -31,7 +31,11 @@ private func временнаяПапка() throws -> URL {
     let engine = DockEngine(store: store, backup: backup, restarter: restarter)
 
     var target = try engine.read()
-    target.apps = [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")]
+    target.apps = [DockApp(
+        path: "/Applications/Safari.app",
+        bundleId: "com.apple.Safari",
+        label: "Safari"
+    )]
     try engine.apply(target)
 
     #expect(try engine.read().apps.count == 1)
@@ -61,10 +65,11 @@ private func временнаяПапка() throws -> URL {
     let dir = try временнаяПапка()
     defer { try? FileManager.default.removeItem(at: dir) }
 
-    let engine = DockEngine(
-        store: try fixtureStore(),
+    let engine = try DockEngine(
+        store: fixtureStore(),
         backup: DockBackup(directory: dir),
-        restarter: FakeRestarter())
+        restarter: FakeRestarter()
+    )
     let state = try engine.read()
     try engine.apply(state)
     let first = try Data(contentsOf: DockBackup(directory: dir).backupURL)
@@ -83,7 +88,11 @@ private func временнаяПапка() throws -> URL {
     let engine = DockEngine(store: store, backup: backup, restarter: restarter)
 
     var target = try engine.read()
-    target.apps = [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")]
+    target.apps = [DockApp(
+        path: "/Applications/Safari.app",
+        bundleId: "com.apple.Safari",
+        label: "Safari"
+    )]
 
     #expect(throws: DockRestartError.self) {
         try engine.apply(target)

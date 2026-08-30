@@ -1,11 +1,11 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 /// Round-trip проверяется на уровне `DockState`, а не байтов plist:
 /// `book` и `GUID` привязаны к машине и в модель осознанно не переносятся.
 @Test func состояниеПереживаетЗаписьИПовторноеЧтение() throws {
-    let original = try DockReader(store: try fixtureStore()).read()
+    let original = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     DockWriter(store: target).write(original)
     #expect(try DockReader(store: target).read() == original)
@@ -20,8 +20,13 @@ import Testing
     settings.orientation = .right
     settings.showRecents = false
     let original = DockState(
-        apps: [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")],
-        settings: settings)
+        apps: [DockApp(
+            path: "/Applications/Safari.app",
+            bundleId: "com.apple.Safari",
+            label: "Safari"
+        )],
+        settings: settings
+    )
     let target = InMemoryDockStore([:])
     DockWriter(store: target).write(original)
     #expect(try DockReader(store: target).read() == original)

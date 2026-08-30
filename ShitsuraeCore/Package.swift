@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "ShitsuraeCore", targets: ["ShitsuraeCore"]),
-        .executable(name: "shitsurae-cli", targets: ["shitsurae-cli"]),
+        .executable(name: "shitsurae-cli", targets: ["shitsurae-cli"])
     ],
     targets: [
         .target(name: "ShitsuraeCore"),
@@ -15,6 +15,6 @@ let package = Package(
             name: "ShitsuraeCoreTests",
             dependencies: ["ShitsuraeCore"],
             resources: [.copy("Fixtures")]
-        ),
+        )
     ]
 )

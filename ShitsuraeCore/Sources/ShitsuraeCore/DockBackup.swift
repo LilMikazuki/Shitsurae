@@ -45,9 +45,12 @@ public struct DockBackup {
     /// и `false`, если он уже был — существующий не перезаписывается никогда.
     @discardableResult
     public func createIfNeeded() throws -> Bool {
-        if exists { return false }
+        if exists {
+            return false
+        }
         try FileManager.default.createDirectory(
-            at: directory, withIntermediateDirectories: true)
+            at: directory, withIntermediateDirectories: true
+        )
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")

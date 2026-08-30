@@ -1,9 +1,13 @@
 import Foundation
-import Testing
 @testable import ShitsuraeCore
+import Testing
 
 @Test func приложениеПереживаетCodable() throws {
-    let app = DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")
+    let app = DockApp(
+        path: "/Applications/Safari.app",
+        bundleId: "com.apple.Safari",
+        label: "Safari"
+    )
     let data = try JSONEncoder().encode(app)
     #expect(try JSONDecoder().decode(DockApp.self, from: data) == app)
 }
@@ -17,7 +21,7 @@ import Testing
 @Test func отсутствующиеПоляНеПопадаютВJSON() throws {
     var settings = DockSettings()
     settings.autohide = true
-    let json = try #require(String(data: try JSONEncoder().encode(settings), encoding: .utf8))
+    let json = try #require(try String(data: JSONEncoder().encode(settings), encoding: .utf8))
     #expect(json.contains("autohide"))
     #expect(!json.contains("tilesize"))
 }
@@ -36,7 +40,7 @@ import Testing
     #expect(DockKey.all.count == 7)
     #expect(Set(DockKey.all) == Set([
         DockKey.apps, DockKey.tilesize, DockKey.magnification, DockKey.largesize,
-        DockKey.autohide, DockKey.orientation, DockKey.showRecents,
+        DockKey.autohide, DockKey.orientation, DockKey.showRecents
     ]))
 }
 
@@ -49,8 +53,13 @@ import Testing
     settings.orientation = .right
     settings.showRecents = false
     let populated = DockState(
-        apps: [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")],
-        settings: settings)
+        apps: [DockApp(
+            path: "/Applications/Safari.app",
+            bundleId: "com.apple.Safari",
+            label: "Safari"
+        )],
+        settings: settings
+    )
     let populatedData = try JSONEncoder().encode(populated)
     #expect(try JSONDecoder().decode(DockState.self, from: populatedData) == populated)
 

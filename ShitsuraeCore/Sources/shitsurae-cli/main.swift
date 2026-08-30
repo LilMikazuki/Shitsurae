@@ -1,5 +1,5 @@
-import ShitsuraeCore
 import Foundation
+import ShitsuraeCore
 
 let usage = """
 Usage: shitsurae-cli <command>
@@ -58,12 +58,14 @@ case "dump":
     case ["--json"]:
         asJSON = true
     case let extra:
-        fail("Unrecognized argument(s) for dump: \(extra.joined(separator: " ")). Usage: dump [--json]")
+        fail(
+            "Unrecognized argument(s) for dump: \(extra.joined(separator: " ")). Usage: dump [--json]"
+        )
     }
     do {
         let state = try DockEngine.live().read()
         if asJSON {
-            print(String(decoding: try jsonEncoder.encode(state), as: UTF8.self))
+            try print(String(decoding: jsonEncoder.encode(state), as: UTF8.self))
         } else {
             print(DockStateFormatter.plainText(state))
         }
@@ -94,7 +96,9 @@ case "apply":
     case ["--dry-run"]:
         dryRun = true
     case let extra:
-        fail("Unrecognized argument(s) for apply: \(extra.joined(separator: " ")). Usage: apply <file> [--dry-run]")
+        fail(
+            "Unrecognized argument(s) for apply: \(extra.joined(separator: " ")). Usage: apply <file> [--dry-run]"
+        )
     }
     do {
         let data = try Data(contentsOf: URL(fileURLWithPath: file))
@@ -107,7 +111,7 @@ case "apply":
             let sandbox = InMemoryDockStore(currentDomainSnapshot())
             DockWriter(store: sandbox).write(state)
             print("Dry run, the Dock was not touched:")
-            print(DockStateFormatter.plainText(try DockReader(store: sandbox).read()))
+            try print(DockStateFormatter.plainText(DockReader(store: sandbox).read()))
         } else {
             try DockEngine.live().apply(state)
             print("Applied. The Dock is restarting.")
@@ -116,9 +120,9 @@ case "apply":
         // К этому моменту домен уже записан и бэкап уже существует — молчать
         // об этом или мешать с обычной ошибкой было бы нечестно с пользователем.
         fail("""
-            The Dock layout was written, but the Dock did not restart: \(error)
-            Run `killall Dock` to finish applying it.
-            """)
+        The Dock layout was written, but the Dock did not restart: \(error)
+        Run `killall Dock` to finish applying it.
+        """)
     } catch {
         fail("Failed to apply: \(error)")
     }

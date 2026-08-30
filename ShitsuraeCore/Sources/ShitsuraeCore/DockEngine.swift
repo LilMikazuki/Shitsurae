@@ -18,7 +18,8 @@ public struct DockEngine {
         DockEngine(
             store: CFPreferencesDockStore(),
             backup: DockBackup(directory: DockBackup.defaultDirectory),
-            restarter: DockRestarter())
+            restarter: DockRestarter()
+        )
     }
 
     public func read() throws -> DockState {
