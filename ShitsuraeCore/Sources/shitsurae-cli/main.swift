@@ -109,7 +109,12 @@ case "apply":
             // на дефолт, хотя на самом деле останутся как есть. Пишем поверх
             // состояние из файла — настоящий Dock всё равно не трогаем.
             let sandbox = InMemoryDockStore(currentDomainSnapshot())
-            DockWriter(store: sandbox).write(state)
+            // Тот же гейт, что и в `DockEngine.apply`: не прочитал — не пишу.
+            // Без него предпросмотр отчитался бы об успехе там, где настоящее
+            // применение отказалось бы писать, — например, если macOS сменила
+            // тип какого-нибудь ключа.
+            _ = try DockReader(store: sandbox).read()
+            try DockWriter(store: sandbox).write(state)
             print("Dry run, the Dock was not touched:")
             try print(DockStateFormatter.plainText(DockReader(store: sandbox).read()))
         } else {

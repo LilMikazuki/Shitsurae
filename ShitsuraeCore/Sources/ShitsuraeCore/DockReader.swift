@@ -84,10 +84,14 @@ public struct DockReader {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-data")
             }
             // Путь лежит percent-кодированной URL-строкой; `URL.path` снимает кодирование.
+            // Схему проверяем явно: у `http://evil.example/Applications/X.app/`
+            // тоже есть правдоподобный `path`, и мы записали бы его обратно
+            // локальным file-URL. Молча переосмысливать чужой ввод нельзя.
             guard let fileData = data["file-data"] as? [String: Any],
                   let urlString = fileData["_CFURLString"] as? String,
-                  let path = URL(string: urlString)?.path,
-                  !path.isEmpty
+                  let url = URL(string: urlString),
+                  url.isFileURL,
+                  !url.path.isEmpty
             else {
                 throw DockReadError.malformedTile(index: index, reason: "missing path")
             }
@@ -97,7 +101,7 @@ public struct DockReader {
             guard let bundleId = data["bundle-identifier"] as? String else {
                 throw DockReadError.malformedTile(index: index, reason: "missing bundle-identifier")
             }
-            return DockApp(path: path, bundleId: bundleId, label: label)
+            return DockApp(path: url.path, bundleId: bundleId, label: label)
         }
     }
 }

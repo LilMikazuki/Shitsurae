@@ -30,10 +30,18 @@ import Testing
     #expect(DockOrientation.allCases.map(\.rawValue) == ["left", "bottom", "right"])
 }
 
+/// Литералы всех семи ключей прибиты здесь целиком и намеренно. Читатель,
+/// писатель и round-trip ходят через одни и те же константы, поэтому опечатка
+/// в любой из них никакому другому тесту не видна: домен молча получил бы
+/// мусорный ключ, а настоящий ключ пользователя остался бы нетронутым.
 @Test func ключиДоменаСовпадаютСоСпекой() {
     #expect(DockKey.apps == "persistent-apps")
-    #expect(DockKey.showRecents == "show-recents")
     #expect(DockKey.tilesize == "tilesize")
+    #expect(DockKey.magnification == "magnification")
+    #expect(DockKey.largesize == "largesize")
+    #expect(DockKey.autohide == "autohide")
+    #expect(DockKey.orientation == "orientation")
+    #expect(DockKey.showRecents == "show-recents")
 }
 
 @Test func всеКлючиДоменаЭтоРовноСемь() {

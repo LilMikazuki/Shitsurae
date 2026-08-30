@@ -96,3 +96,24 @@ private func tile(path: String, bundleId: String, label: String) -> [String: Any
         try DockReader(store: store).read()
     }
 }
+
+/// У `http://evil.example/Applications/X.app/` тоже есть правдоподобный `path`,
+/// и без проверки схемы мы записали бы его обратно локальным file-URL. Из живого
+/// домена такое не приходит, но молча переосмысливать чужой ввод спека запрещает.
+@Test func нефайловыйURLЛомаетЧтение() {
+    let remote: [String: Any] = [
+        "tile-type": "file-tile",
+        "tile-data": [
+            "file-data": [
+                "_CFURLString": "http://evil.example/Applications/X.app/",
+                "_CFURLStringType": 15
+            ],
+            "file-label": "X",
+            "bundle-identifier": "com.x.y"
+        ] as [String: Any]
+    ]
+    let store = InMemoryDockStore([DockKey.apps: [remote]])
+    #expect(throws: DockReadError.malformedTile(index: 0, reason: "missing path")) {
+        try DockReader(store: store).read()
+    }
+}

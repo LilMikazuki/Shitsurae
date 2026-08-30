@@ -14,6 +14,29 @@ private final class FakeRestarter: DockRestarting {
     }
 }
 
+/// Стор, который принимает запись, но честно сообщает, что синхронизация
+/// провалилась, — так ведёт себя `CFPreferencesAppSynchronize`, когда
+/// `cfprefsd` не принял изменения.
+private final class NonSynchronizingStore: DockPreferenceStore {
+    private let inner: InMemoryDockStore
+
+    init(_ inner: InMemoryDockStore) {
+        self.inner = inner
+    }
+
+    func value(forKey key: String) -> Any? {
+        inner.value(forKey: key)
+    }
+
+    func setValue(_ value: Any?, forKey key: String) {
+        inner.setValue(value, forKey: key)
+    }
+
+    @discardableResult func synchronize() -> Bool {
+        false
+    }
+}
+
 private func временнаяПапка() throws -> URL {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-engine-\(UUID().uuidString)")
@@ -75,6 +98,22 @@ private func временнаяПапка() throws -> URL {
     let first = try Data(contentsOf: DockBackup(directory: dir).backupURL)
     try engine.apply(state)
     #expect(try Data(contentsOf: DockBackup(directory: dir).backupURL) == first)
+}
+
+/// Провал синхронизации означает, что записанное не сохранилось. Перезапускать
+/// Dock после этого нельзя: панель моргнула бы, сделав вид, что пресет применён.
+@Test func провалСинхронизацииОтменяетПерезапуск() throws {
+    let dir = try временнаяПапка()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let store = try NonSynchronizingStore(fixtureStore())
+    let restarter = FakeRestarter()
+    let engine = DockEngine(store: store, backup: DockBackup(directory: dir), restarter: restarter)
+
+    #expect(throws: DockWriteError.synchronizeFailed) {
+        try engine.apply(DockState(apps: [], settings: DockSettings()))
+    }
+    #expect(restarter.restarts == 0)
 }
 
 @Test func ошибкаПерезапускаНеГлотаетсяНоЗаписьИБэкапУжеСделаны() throws {

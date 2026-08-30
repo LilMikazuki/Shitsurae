@@ -7,7 +7,7 @@ import Testing
 @Test func состояниеПереживаетЗаписьИПовторноеЧтение() throws {
     let original = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
-    DockWriter(store: target).write(original)
+    try DockWriter(store: target).write(original)
     #expect(try DockReader(store: target).read() == original)
 }
 
@@ -28,6 +28,6 @@ import Testing
         settings: settings
     )
     let target = InMemoryDockStore([:])
-    DockWriter(store: target).write(original)
+    try DockWriter(store: target).write(original)
     #expect(try DockReader(store: target).read() == original)
 }

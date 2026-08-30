@@ -4,14 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   build:
     # macos-26 — arm64-раннер, Xcode 26.6 и SwiftFormat 0.62.1 предустановлены.
     runs-on: macos-26
+    # Сборка и тесты укладываются в пару минут; всё, что дольше, — зависший
+    # раннер, и висеть он должен не час, а до внятного отказа.
+    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Показать версии инструментов
         run: |

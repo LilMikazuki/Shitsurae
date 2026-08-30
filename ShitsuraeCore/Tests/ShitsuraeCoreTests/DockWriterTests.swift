@@ -28,7 +28,7 @@ import Testing
 @Test func отсутствующиеНастройкиНеЗаписываются() throws {
     let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
-    DockWriter(store: target).write(state)
+    try DockWriter(store: target).write(state)
     #expect(target.value(forKey: DockKey.orientation) == nil)
     #expect(target.value(forKey: DockKey.magnification) == nil)
     #expect(target.value(forKey: DockKey.largesize) == nil)
@@ -38,7 +38,7 @@ import Testing
 @Test func записываетсяТолькоСемьКлючей() throws {
     let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
-    DockWriter(store: target).write(state)
+    try DockWriter(store: target).write(state)
     // В фикстуре 20 ключей домена, но нас касаются только свои.
     #expect(Set(target.snapshot.keys).isSubset(of: Set(DockKey.all)))
 }

@@ -10,7 +10,7 @@ public struct DockWriter {
         self.store = store
     }
 
-    public func write(_ state: DockState) {
+    public func write(_ state: DockState) throws {
         store.setValue(state.apps.map(Self.tile(for:)), forKey: DockKey.apps)
         set(state.settings.tilesize, DockKey.tilesize)
         set(state.settings.largesize, DockKey.largesize)
@@ -18,7 +18,12 @@ public struct DockWriter {
         set(state.settings.autohide, DockKey.autohide)
         set(state.settings.showRecents, DockKey.showRecents)
         set(state.settings.orientation?.rawValue, DockKey.orientation)
-        store.synchronize()
+        // Результат синхронизации — единственное, что вообще сообщает
+        // об успехе записи. Проглотить его значило бы отчитаться об успехе
+        // и перезапустить Dock после того, как ничего не сохранилось.
+        guard store.synchronize() else {
+            throw DockWriteError.synchronizeFailed
+        }
     }
 
     /// Минимальный тайл. `book`, `GUID`, `dock-extra` и прочее Dock достроит сам
