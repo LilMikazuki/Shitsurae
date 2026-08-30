@@ -1,18 +1,6 @@
 import Foundation
 import ShitsuraeCore
 
-let usage = """
-Usage: shitsurae-cli <command>
-
-Commands:
-  dump [--json]            Print the current Dock layout and settings;
-                           --json prints a DockState JSON document instead
-  backup                   Create the one-time backup of the Dock domain
-  apply <file> [--dry-run] Apply a DockState JSON file; --dry-run prints the
-                           result without touching the real Dock
-  --help, -h               Print this message
-"""
-
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data("\(message)\n".utf8))
     exit(1)
@@ -21,9 +9,9 @@ func fail(_ message: String) -> Never {
 /// Подсказку по запросу печатаем в stdout, а при ошибке — в stderr.
 func printUsage(asError: Bool) {
     if asError {
-        FileHandle.standardError.write(Data("\(usage)\n".utf8))
+        FileHandle.standardError.write(Data("\(ShitsuraeCommand.usage)\n".utf8))
     } else {
-        print(usage)
+        print(ShitsuraeCommand.usage)
     }
 }
 
@@ -33,24 +21,23 @@ let jsonEncoder: JSONEncoder = {
     return encoder
 }()
 
-let arguments = Array(CommandLine.arguments.dropFirst())
+let command: ShitsuraeCommand
+do {
+    command = try ShitsuraeCommand.parse(Array(CommandLine.arguments.dropFirst()))
+} catch CommandParseError.noCommand, CommandParseError.unknownCommand {
+    // Запуск без команды — это не успех: скрипт с `if shitsurae-cli; then`
+    // иначе принял бы «ничего не сделано» за удачу.
+    printUsage(asError: true)
+    exit(1)
+} catch {
+    fail("\(error)")
+}
 
-switch arguments.first {
-case "dump":
-    let asJSON: Bool
-    switch Array(arguments.dropFirst()) {
-    case []:
-        asJSON = false
-    case ["--json"]:
-        asJSON = true
-    case let extra:
-        fail(
-            "Unrecognized argument(s) for dump: \(extra.joined(separator: " ")). Usage: dump [--json]"
-        )
-    }
+switch command {
+case let .dump(json):
     do {
         let state = try DockEngine.live().read()
-        if asJSON {
+        if json {
             try print(String(decoding: jsonEncoder.encode(state), as: UTF8.self))
         } else {
             print(DockStateFormatter.plainText(state))
@@ -59,7 +46,7 @@ case "dump":
         fail("Failed to read the Dock: \(error)")
     }
 
-case "backup":
+case .backup:
     do {
         let backup = DockBackup(directory: DockBackup.defaultDirectory)
         let created = try backup.createIfNeeded()
@@ -70,22 +57,7 @@ case "backup":
         fail("Failed to back up the Dock domain: \(error)")
     }
 
-case "apply":
-    guard arguments.count >= 2 else {
-        fail("apply requires a file argument. Usage: apply <file> [--dry-run]")
-    }
-    let file = arguments[1]
-    let dryRun: Bool
-    switch Array(arguments.dropFirst(2)) {
-    case []:
-        dryRun = false
-    case ["--dry-run"]:
-        dryRun = true
-    case let extra:
-        fail(
-            "Unrecognized argument(s) for apply: \(extra.joined(separator: " ")). Usage: apply <file> [--dry-run]"
-        )
-    }
+case let .apply(file, dryRun):
     do {
         let data = try Data(contentsOf: URL(fileURLWithPath: file))
         let state = try JSONDecoder().decode(DockState.self, from: data)
@@ -107,12 +79,6 @@ case "apply":
         fail("Failed to apply: \(error)")
     }
 
-case "--help", "-h":
+case .help:
     printUsage(asError: false)
-
-default:
-    // Запуск без команды — это не успех: скрипт с `if shitsurae-cli; then`
-    // иначе принял бы «ничего не сделано» за удачу.
-    printUsage(asError: true)
-    exit(1)
 }
