@@ -4,7 +4,14 @@ import Testing
 
 private final class FakeRestarter: DockRestarting {
     var restarts = 0
-    func restart() { restarts += 1 }
+    var errorToThrow: DockRestartError?
+
+    func restart() throws {
+        restarts += 1
+        if let errorToThrow {
+            throw errorToThrow
+        }
+    }
 }
 
 private func временнаяПапка() throws -> URL {
@@ -63,4 +70,27 @@ private func временнаяПапка() throws -> URL {
     let first = try Data(contentsOf: DockBackup(directory: dir).backupURL)
     try engine.apply(state)
     #expect(try Data(contentsOf: DockBackup(directory: dir).backupURL) == first)
+}
+
+@Test func ошибкаПерезапускаНеГлотаетсяНоЗаписьИБэкапУжеСделаны() throws {
+    let dir = try временнаяПапка()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let store = try fixtureStore()
+    let backup = DockBackup(directory: dir)
+    let restarter = FakeRestarter()
+    restarter.errorToThrow = .dockProcessNotFound
+    let engine = DockEngine(store: store, backup: backup, restarter: restarter)
+
+    var target = try engine.read()
+    target.apps = [DockApp(path: "/Applications/Safari.app", bundleId: "com.apple.Safari", label: "Safari")]
+
+    #expect(throws: DockRestartError.self) {
+        try engine.apply(target)
+    }
+
+    // Ошибка перезапуска не должна прятать то, что уже случилось:
+    // запись и бэкап сделаны, применить не удалось — но не потеряно.
+    #expect(try engine.read().apps.count == 1)
+    #expect(backup.exists == true)
 }

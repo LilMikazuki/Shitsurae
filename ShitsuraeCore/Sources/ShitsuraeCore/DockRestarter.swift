@@ -3,18 +3,41 @@ import Foundation
 
 /// Перезапуск Dock вынесен за протокол, чтобы тесты не убивали настоящий Dock.
 public protocol DockRestarting {
-    func restart()
+    func restart() throws
+}
+
+/// Провал перезапуска Dock. К моменту, когда это бросается, домен уже
+/// записан и бэкап уже существует — ошибка означает «записано, но не
+/// применено», а не «ничего не произошло».
+public enum DockRestartError: Error, Equatable {
+    /// Процесс Dock не найден — терминировать нечего.
+    case dockProcessNotFound
+    /// Dock отказался завершиться.
+    case terminateRefused
 }
 
 /// Публичного API у Dock нет: единственный способ применить изменения —
 /// завершить демон, launchd поднимет его заново. Панель при этом моргнёт.
 public final class DockRestarter: DockRestarting {
+    /// Тот же самый идентификатор, что и `CFPreferencesDockStore.domainName`,
+    /// но это отдельная константа: macOS использует одну строку и для домена
+    /// настроек, и для bundle id процесса по соглашению, а не по гарантии.
+    /// Если один когда-нибудь поменяют по причине, касающейся только
+    /// настроек, другой не должен молча сломаться.
+    private static let bundleIdentifier = "com.apple.dock"
+
     public init() {}
 
-    public func restart() {
-        for app in NSRunningApplication.runningApplications(
-            withBundleIdentifier: CFPreferencesDockStore.domainName) {
-            app.terminate()
+    public func restart() throws {
+        let apps = NSRunningApplication.runningApplications(
+            withBundleIdentifier: Self.bundleIdentifier)
+        guard !apps.isEmpty else {
+            throw DockRestartError.dockProcessNotFound
+        }
+        for app in apps {
+            guard app.terminate() else {
+                throw DockRestartError.terminateRefused
+            }
         }
     }
 }
