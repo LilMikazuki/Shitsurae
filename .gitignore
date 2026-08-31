@@ -26,3 +26,7 @@ Shitsurae.xcodeproj/
 
 # Internal planning notes, not part of the published project.
 docs/
+
+# Agent and tooling state, not part of the published project.
+.claude/
+.superpowers/
