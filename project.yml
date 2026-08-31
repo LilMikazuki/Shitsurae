@@ -1,0 +1,41 @@
+name: Shitsurae
+
+options:
+  bundleIdPrefix: io.github.lilmikazuki
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  ShitsuraeCore:
+    path: ShitsuraeCore
+
+targets:
+  Shitsurae:
+    type: application
+    platform: macOS
+    sources:
+      - path: Shitsurae
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: ShitsuraeCore
+        product: ShitsuraeKit
+      - package: ShitsuraeCore
+        product: ShitsuraeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.lilmikazuki.Shitsurae
+        PRODUCT_NAME: Shitsurae
+        INFOPLIST_FILE: Shitsurae/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        ONLY_ACTIVE_ARCH: YES
+        ARCHS: arm64
