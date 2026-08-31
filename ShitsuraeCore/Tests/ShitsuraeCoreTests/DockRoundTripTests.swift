@@ -2,16 +2,14 @@ import Foundation
 @testable import ShitsuraeCore
 import Testing
 
-/// Round-trip проверяется на уровне `DockState`, а не байтов plist:
-/// `book` и `GUID` привязаны к машине и в модель осознанно не переносятся.
-@Test func состояниеПереживаетЗаписьИПовторноеЧтение() throws {
+@Test func theStateSurvivesAWriteAndReread() throws {
     let original = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     try DockWriter(store: target).write(original)
     #expect(try DockReader(store: target).read() == original)
 }
 
-@Test func всеНастройкиПереживаютRoundTrip() throws {
+@Test func everySettingSurvivesARoundTrip() throws {
     var settings = DockSettings()
     settings.tilesize = 48.0
     settings.largesize = 64.0

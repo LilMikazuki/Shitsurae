@@ -1,6 +1,5 @@
 import Foundation
 
-/// Человекочитаемый вывод состояния для CLI. Строки английские — см. глобальные ограничения.
 public enum DockStateFormatter {
     public static func plainText(_ state: DockState) -> String {
         var lines: [String] = []
@@ -20,7 +19,6 @@ public enum DockStateFormatter {
         return lines.joined(separator: "\n")
     }
 
-    /// Отсутствие ключа в домене — это не «пусто», а «значение по умолчанию macOS».
     private static func describe(_ value: (some Any)?) -> String {
         value.map { "\($0)" } ?? "(default)"
     }

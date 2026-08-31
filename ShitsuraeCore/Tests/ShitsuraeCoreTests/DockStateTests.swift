@@ -2,7 +2,7 @@ import Foundation
 @testable import ShitsuraeCore
 import Testing
 
-@Test func приложениеПереживаетCodable() throws {
+@Test func anAppSurvivesCodable() throws {
     let app = DockApp(
         path: "/Applications/Safari.app",
         bundleId: "com.apple.Safari",
@@ -12,13 +12,13 @@ import Testing
     #expect(try JSONDecoder().decode(DockApp.self, from: data) == app)
 }
 
-@Test func пустыеНастройкиНеСодержатЗначений() {
+@Test func emptySettingsHoldNoValues() {
     let settings = DockSettings()
     #expect(settings.tilesize == nil)
     #expect(settings.orientation == nil)
 }
 
-@Test func отсутствующиеПоляНеПопадаютВJSON() throws {
+@Test func absentFieldsStayOutOfTheJSON() throws {
     var settings = DockSettings()
     settings.autohide = true
     let json = try #require(try String(data: JSONEncoder().encode(settings), encoding: .utf8))
@@ -26,15 +26,11 @@ import Testing
     #expect(!json.contains("tilesize"))
 }
 
-@Test func ориентацияИмеетТриЗначения() {
+@Test func orientationHasThreeValues() {
     #expect(DockOrientation.allCases.map(\.rawValue) == ["left", "bottom", "right"])
 }
 
-/// Литералы всех семи ключей прибиты здесь целиком и намеренно. Читатель,
-/// писатель и round-trip ходят через одни и те же константы, поэтому опечатка
-/// в любой из них никакому другому тесту не видна: домен молча получил бы
-/// мусорный ключ, а настоящий ключ пользователя остался бы нетронутым.
-@Test func ключиДоменаСовпадаютСоСпекой() {
+@Test func theDomainKeysMatchTheSpec() {
     #expect(DockKey.apps == "persistent-apps")
     #expect(DockKey.tilesize == "tilesize")
     #expect(DockKey.magnification == "magnification")
@@ -44,7 +40,7 @@ import Testing
     #expect(DockKey.showRecents == "show-recents")
 }
 
-@Test func всеКлючиДоменаЭтоРовноСемь() {
+@Test func theDomainHasExactlySevenKeys() {
     #expect(DockKey.all.count == 7)
     #expect(Set(DockKey.all) == Set([
         DockKey.apps, DockKey.tilesize, DockKey.magnification, DockKey.largesize,
@@ -52,7 +48,7 @@ import Testing
     ]))
 }
 
-@Test func состояниеПереживаетJSONRoundTrip() throws {
+@Test func theStateSurvivesAJSONRoundTrip() throws {
     var settings = DockSettings()
     settings.tilesize = 48.0
     settings.largesize = 64.0
@@ -71,9 +67,6 @@ import Testing
     let populatedData = try JSONEncoder().encode(populated)
     #expect(try JSONDecoder().decode(DockState.self, from: populatedData) == populated)
 
-    // Пропущенное в JSON поле должно остаться `nil`, а не превратиться
-    // в значение по умолчанию — иначе предпросмотр `--dry-run` соврал бы
-    // о настройках, которые пользователь не собирался менять.
     let omitted = DockState(apps: [], settings: DockSettings())
     let omittedData = try JSONEncoder().encode(omitted)
     let decoded = try JSONDecoder().decode(DockState.self, from: omittedData)

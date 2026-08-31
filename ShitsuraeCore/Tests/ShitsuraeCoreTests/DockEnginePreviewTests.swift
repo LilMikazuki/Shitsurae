@@ -2,11 +2,11 @@ import Foundation
 @testable import ShitsuraeCore
 import Testing
 
-private final class МолчаливыйРестартер: DockRestarting {
+private final class SilentRestarter: DockRestarting {
     func restart() throws {}
 }
 
-private func превьюДвижок(_ store: DockPreferenceStore) throws -> (DockEngine, DockBackup, URL) {
+private func previewEngine(_ store: DockPreferenceStore) throws -> (DockEngine, DockBackup, URL) {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-preview-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -14,13 +14,13 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
     let engine = DockEngine(
         store: store,
         backup: backup,
-        restarter: МолчаливыйРестартер()
+        restarter: SilentRestarter()
     )
     return (engine, backup, dir)
 }
 
-@Test func предпросмотрПоказываетРезультатПрименения() throws {
-    let (engine, _, dir) = try превьюДвижок(fixtureStore())
+@Test func previewShowsTheResultOfApplying() throws {
+    let (engine, _, dir) = try previewEngine(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     var target = try engine.read()
@@ -35,11 +35,10 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
     #expect(preview.apps.first?.bundleId == "com.apple.Safari")
 }
 
-/// Главное свойство предпросмотра: исходный стор не меняется.
-@Test func предпросмотрНеТрогаетИсходныйСтор() throws {
+@Test func previewLeavesTheSourceStoreAlone() throws {
     let store = try fixtureStore()
     let before = try DockReader(store: store).read()
-    let (engine, _, dir) = try превьюДвижок(store)
+    let (engine, _, dir) = try previewEngine(store)
     defer { try? FileManager.default.removeItem(at: dir) }
 
     var target = try engine.read()
@@ -49,20 +48,21 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
     #expect(try DockReader(store: store).read() == before)
 }
 
-/// Пропущенная настройка означает «не трогать», и предпросмотр обязан
-/// показывать её сохранённой, а не сброшенной в дефолт.
-@Test func предпросмотрСохраняетПропущенныеНастройки() throws {
-    let (engine, _, dir) = try превьюДвижок(fixtureStore())
+@Test func aLayoutClearsTheSettingsItDoesNotCarry() throws {
+    let (engine, _, dir) = try previewEngine(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let preview = try engine.preview(DockState(apps: [], settings: DockSettings()))
-    #expect(preview.settings.tilesize == 82.0)
-    #expect(preview.settings.autohide == true)
+
+    #expect(
+        preview.settings.tilesize == nil,
+        "captured without a tile size, so restore its absence"
+    )
+    #expect(preview.settings.autohide == nil)
 }
 
-/// Тот же гейт, что и в `apply`: непонятный домен запрещает даже предпросмотр.
-@Test func предпросмотрПадаетНаНечитаемомДомене() throws {
-    let (engine, _, dir) = try превьюДвижок(InMemoryDockStore([DockKey.tilesize: "большой"]))
+@Test func previewFailsOnAnUnreadableDomain() throws {
+    let (engine, _, dir) = try previewEngine(InMemoryDockStore([DockKey.tilesize: "large"]))
     defer { try? FileManager.default.removeItem(at: dir) }
 
     #expect(throws: DockReadError.self) {
@@ -70,10 +70,8 @@ private func превьюДвижок(_ store: DockPreferenceStore) throws -> (D
     }
 }
 
-/// Второе свойство предпросмотра: он не создаёт и не трогает бэкап,
-/// это исключительно дело `apply`.
-@Test func предпросмотрНеТрогаетБэкап() throws {
-    let (engine, backup, dir) = try превьюДвижок(fixtureStore())
+@Test func previewLeavesTheBackupAlone() throws {
+    let (engine, backup, dir) = try previewEngine(fixtureStore())
     defer { try? FileManager.default.removeItem(at: dir) }
 
     _ = try engine.preview(DockState(apps: [], settings: DockSettings()))

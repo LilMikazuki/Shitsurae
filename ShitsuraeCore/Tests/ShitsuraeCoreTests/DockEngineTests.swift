@@ -24,9 +24,6 @@ private final class FakeRestarter: DockRestarting {
     }
 }
 
-/// Стор, который принимает запись, но честно сообщает, что синхронизация
-/// провалилась, — так ведёт себя `CFPreferencesAppSynchronize`, когда
-/// `cfprefsd` не принял изменения.
 private final class NonSynchronizingStore: DockPreferenceStore {
     private let inner: InMemoryDockStore
 
@@ -47,15 +44,15 @@ private final class NonSynchronizingStore: DockPreferenceStore {
     }
 }
 
-private func временнаяПапка() throws -> URL {
+private func temporaryFolder() throws -> URL {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-engine-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
 }
 
-@Test func применениеПишетДелаетБэкапИПерезапускает() throws {
-    let dir = try временнаяПапка()
+@Test func applyingWritesBacksUpAndRestarts() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let store = try fixtureStore()
@@ -76,26 +73,24 @@ private func временнаяПапка() throws -> URL {
     #expect(restarter.restarts == 1)
 }
 
-@Test func нечитаемыйДоменЗапрещаетЗапись() throws {
-    let dir = try временнаяПапка()
+@Test func anUnreadableDomainForbidsWriting() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
-    // Домен, который мы не умеем разбирать: tilesize строкой.
-    let store = InMemoryDockStore([DockKey.tilesize: "большой"])
+    let store = InMemoryDockStore([DockKey.tilesize: "large"])
     let restarter = FakeRestarter()
     let engine = DockEngine(store: store, backup: DockBackup(directory: dir), restarter: restarter)
 
     #expect(throws: DockReadError.self) {
         try engine.apply(DockState(apps: [], settings: DockSettings()))
     }
-    // Ничего не записано и Dock не тронут.
     #expect(store.value(forKey: DockKey.apps) == nil)
     #expect(restarter.restarts == 0)
     #expect(DockBackup(directory: dir).exists == false)
 }
 
-@Test func повторноеПрименениеНеДелаетВторойБэкап() throws {
-    let dir = try временнаяПапка()
+@Test func reapplyingDoesNotMakeASecondBackup() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let engine = try DockEngine(
@@ -110,10 +105,8 @@ private func временнаяПапка() throws -> URL {
     #expect(try Data(contentsOf: DockBackup(directory: dir).backupURL) == first)
 }
 
-/// Провал синхронизации означает, что записанное не сохранилось. Перезапускать
-/// Dock после этого нельзя: панель моргнула бы, сделав вид, что пресет применён.
-@Test func провалСинхронизацииОтменяетПерезапуск() throws {
-    let dir = try временнаяПапка()
+@Test func aSyncFailureCancelsTheRestart() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let store = try NonSynchronizingStore(fixtureStore())
@@ -126,14 +119,14 @@ private func временнаяПапка() throws -> URL {
     #expect(restarter.restarts == 0)
 }
 
-@Test func ошибкаПерезапускаНеГлотаетсяНоЗаписьИБэкапУжеСделаны() throws {
-    let dir = try временнаяПапка()
+@Test func aRestartErrorIsNotSwallowedButTheWriteAndBackupAreDone() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let store = try fixtureStore()
     let backup = DockBackup(directory: dir)
     let restarter = FakeRestarter()
-    restarter.errorToThrow = .dockProcessNotFound
+    restarter.errorToThrow = .terminateRefused
     let engine = DockEngine(store: store, backup: backup, restarter: restarter)
 
     var target = try engine.read()
@@ -147,29 +140,62 @@ private func временнаяПапка() throws -> URL {
         try engine.apply(target)
     }
 
-    // Ошибка перезапуска не должна прятать то, что уже случилось:
-    // запись и бэкап сделаны, применить не удалось — но не потеряно.
     #expect(try engine.read().apps.count == 1)
     #expect(backup.exists == true)
 }
 
-/// `restarts` считает попытки, а не успехи: провалившийся перезапуск —
-/// это всё равно предпринятый перезапуск, и тест на путь «записано,
-/// но не применено» опирается на то, что попытка была.
-@Test func счётчикРестартовСчитаетПопыткиАНеУспехи() throws {
-    let dir = try временнаяПапка()
+@Test func theRestartCounterCountsAttemptsNotSuccesses() throws {
+    let dir = try temporaryFolder()
     defer { try? FileManager.default.removeItem(at: dir) }
 
     let restarter = FakeRestarter()
-    restarter.errorToThrow = .dockProcessNotFound
+    restarter.errorToThrow = .terminateRefused
     let engine = try DockEngine(
         store: fixtureStore(),
         backup: DockBackup(directory: dir),
         restarter: restarter
     )
 
-    #expect(throws: DockRestartError.dockProcessNotFound) {
+    #expect(throws: DockRestartError.terminateRefused) {
         try engine.apply(engine.read())
     }
     #expect(restarter.restarts == 1)
+}
+
+private final class FakeDockProcess: DockProcess, @unchecked Sendable {
+    private let lock = NSLock()
+    private let quits: Bool
+    private nonisolated(unsafe) var _asked = false
+
+    init(quits: Bool) {
+        self.quits = quits
+    }
+
+    var wasAsked: Bool {
+        lock.withLock { _asked }
+    }
+
+    func terminate() -> Bool {
+        lock.withLock { _asked = true }
+        return quits
+    }
+}
+
+@Test func noDockRunningIsNotTreatedAsARestartFailure() throws {
+    let restarter = DockRestarter(processes: { [] })
+    #expect(throws: Never.self) { try restarter.restart() }
+}
+
+@Test func aDockThatRefusesToQuitIsARestartFailure() {
+    let stubborn = FakeDockProcess(quits: false)
+    let restarter = DockRestarter(processes: { [stubborn] })
+
+    #expect(throws: DockRestartError.terminateRefused) { try restarter.restart() }
+    #expect(stubborn.wasAsked)
+}
+
+@Test func aRunningDockIsAskedToQuit() throws {
+    let dock = FakeDockProcess(quits: true)
+    try DockRestarter(processes: { [dock] }).restart()
+    #expect(dock.wasAsked)
 }

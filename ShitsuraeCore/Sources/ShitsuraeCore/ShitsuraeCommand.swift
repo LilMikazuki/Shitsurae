@@ -1,14 +1,9 @@
 import Foundation
 
-/// Провал разбора командной строки. Тексты английские: их видит пользователь.
 public enum CommandParseError: Error, Equatable {
-    /// Программу запустили без команды.
     case noCommand
-    /// Первым аргументом пришло что-то, чего мы не знаем.
     case unknownCommand(String)
-    /// `apply` вызван без пути к файлу.
     case missingFile
-    /// Команда узнана, но хвост аргументов не разобран.
     case unrecognizedArguments(command: String, arguments: [String], usage: String)
 }
 
@@ -28,9 +23,6 @@ extension CommandParseError: CustomStringConvertible {
     }
 }
 
-/// Разобранная команда. Живёт в библиотеке, а не в `main.swift`, потому что
-/// проверка формы аргументов — единственное, что стоит между опечаткой в
-/// `--dry-run` и настоящей перезаписью Dock, и она обязана быть под тестами.
 public enum ShitsuraeCommand: Equatable, Sendable {
     case dump(json: Bool)
     case backup

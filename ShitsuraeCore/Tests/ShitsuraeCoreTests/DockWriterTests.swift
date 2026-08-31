@@ -2,7 +2,7 @@ import Foundation
 @testable import ShitsuraeCore
 import Testing
 
-@Test func тайлСобираетсяВФорматеDock() throws {
+@Test func aTileIsBuiltInTheDockFormat() throws {
     let app = DockApp(
         path: "/Applications/Safari.app",
         bundleId: "com.apple.Safari",
@@ -18,14 +18,14 @@ import Testing
     #expect(data["bundle-identifier"] as? String == "com.apple.Safari")
 }
 
-@Test func пробелВПутиКодируетсяПриЗаписи() throws {
+@Test func aSpaceInAPathIsEncodedOnWrite() throws {
     let app = DockApp(path: "/Applications/Some App.app", bundleId: "com.x.y", label: "Some App")
     let data = try #require(DockWriter.tile(for: app)["tile-data"] as? [String: Any])
     let fileData = try #require(data["file-data"] as? [String: Any])
     #expect(fileData["_CFURLString"] as? String == "file:///Applications/Some%20App.app/")
 }
 
-@Test func отсутствующиеНастройкиНеЗаписываются() throws {
+@Test func absentSettingsLeaveNoKeyBehind() throws {
     let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     try DockWriter(store: target).write(state)
@@ -35,10 +35,26 @@ import Testing
     #expect(target.value(forKey: DockKey.autohide) as? Bool == true)
 }
 
-@Test func записываетсяТолькоСемьКлючей() throws {
+@Test func onlySevenKeysAreWritten() throws {
     let state = try DockReader(store: fixtureStore()).read()
     let target = InMemoryDockStore([:])
     try DockWriter(store: target).write(state)
-    // В фикстуре 20 ключей домена, но нас касаются только свои.
     #expect(Set(target.snapshot.keys).isSubset(of: Set(DockKey.all)))
+}
+
+@Test func aSettingTheLayoutLacksIsClearedRatherThanInherited() throws {
+    let target = InMemoryDockStore([
+        DockKey.orientation: "left",
+        DockKey.magnification: true,
+        DockKey.tilesize: 64.0
+    ])
+
+    try DockWriter(store: target).write(DockState(apps: [], settings: DockSettings()))
+
+    #expect(
+        target.value(forKey: DockKey.orientation) == nil,
+        "one layout must not leak into another"
+    )
+    #expect(target.value(forKey: DockKey.magnification) == nil)
+    #expect(target.value(forKey: DockKey.tilesize) == nil)
 }

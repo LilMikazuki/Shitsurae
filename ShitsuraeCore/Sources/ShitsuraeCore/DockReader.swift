@@ -1,8 +1,5 @@
 import Foundation
 
-/// Домен `com.apple.dock` -> `DockState`.
-/// Отсутствие ключа трактуется как значение по умолчанию и даёт `nil`.
-/// Неверный тип — ошибка: значит формат сменился и писать нельзя.
 struct DockReader {
     private let store: DockPreferenceStore
 
@@ -23,9 +20,6 @@ struct DockReader {
 
     private func number(_ key: String) throws -> Double? {
         guard let raw = store.value(forKey: key) else { return nil }
-        // `CFBoolean` — тоже подкласс `NSNumber` (`__NSCFBoolean`), поэтому
-        // одного `as? NSNumber` мало: булево значение под числовым ключом
-        // молча превратилось бы в 0.0/1.0. Явно исключаем CFBoolean.
         guard !isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Number")
         }
@@ -34,18 +28,12 @@ struct DockReader {
 
     private func bool(_ key: String) throws -> Bool? {
         guard let raw = store.value(forKey: key) else { return nil }
-        // Симметрично: `as? NSNumber` пропустил бы и обычный CFNumber
-        // (0 или 1) под булевым ключом. Требуем, чтобы значение и правда
-        // было CFBoolean, а не числом, которое лишь похоже на него.
         guard isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Bool")
         }
         return value.boolValue
     }
 
-    /// `NSNumber` — общий Objective-C мост и для `CFBoolean`, и для
-    /// `CFNumber`: приведение `as? NSNumber` их не различает. Различаем
-    /// по CF type id — единственный надёжный способ отличить эти два случая.
     private func isCFBoolean(_ value: Any) -> Bool {
         CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
     }
@@ -76,21 +64,12 @@ struct DockReader {
             guard let tileType = tile["tile-type"] as? String else {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-type")
             }
-            // Dock lets users place spacer tiles directly in `persistent-apps`
-            // (`spacer-tile`, `small-spacer-tile`, `flex-spacer-tile`). That's a
-            // real, current Dock feature, not format corruption — but we don't
-            // parse or round-trip it yet, so fail with a message that names
-            // what's actually there instead of claiming a path is missing.
             guard tileType == "file-tile" else {
                 throw DockReadError.unsupportedTileType(index: index, tileType: tileType)
             }
             guard let data = tile["tile-data"] as? [String: Any] else {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-data")
             }
-            // Путь лежит percent-кодированной URL-строкой; `URL.path` снимает кодирование.
-            // Схему проверяем явно: у `http://evil.example/Applications/X.app/`
-            // тоже есть правдоподобный `path`, и мы записали бы его обратно
-            // локальным file-URL. Молча переосмысливать чужой ввод нельзя.
             guard let fileData = data["file-data"] as? [String: Any],
                   let urlString = fileData["_CFURLString"] as? String,
                   let url = URL(string: urlString),

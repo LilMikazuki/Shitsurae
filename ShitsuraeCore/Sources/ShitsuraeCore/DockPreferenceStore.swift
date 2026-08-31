@@ -1,17 +1,11 @@
 import Foundation
 
-/// Единственный способ, которым Shitsurae общается с доменом настроек.
-/// Существует ради тестируемости: боевой стор ходит в `cfprefsd`,
-/// а тестовый работает на словаре, снятом с живой системы.
 protocol DockPreferenceStore: AnyObject, Sendable {
     func value(forKey key: String) -> Any?
     func setValue(_ value: Any?, forKey key: String)
     @discardableResult func synchronize() -> Bool
 }
 
-/// Боевая реализация поверх CFPreferences.
-/// Через CFPreferences, а не правкой plist-файла: иначе `cfprefsd`
-/// перезапишет наши изменения содержимым своего кеша.
 final class CFPreferencesDockStore: DockPreferenceStore {
     private let domain: String
 
@@ -32,12 +26,8 @@ final class CFPreferencesDockStore: DockPreferenceStore {
     }
 }
 
-/// Стор на словаре. Используется тестами и режимом `--dry-run` в CLI.
 final class InMemoryDockStore: DockPreferenceStore {
     private let lock = NSLock()
-    /// Безопасность поля держит `lock`, а не компилятор. `Mutex` здесь не
-    /// подходит: словарь с `Any` не пересекает границу `sending`, и никакая
-    /// формулировка сеттера этого не чинит — проверено.
     private nonisolated(unsafe) var storage: [String: Any]
 
     init(_ storage: [String: Any]) {
@@ -53,10 +43,6 @@ final class InMemoryDockStore: DockPreferenceStore {
     }
 
     func setValue(_ value: Any?, forKey key: String) {
-        // Присваивание, а не `if let` с `removeValue`: словарь сам удаляет ключ
-        // при `nil` — на это поведение есть тест, — и присваивание возвращает
-        // Void, поэтому `withLock` не даёт предупреждения о неиспользованном
-        // результате, как даёт вариант с `removeValue`.
         lock.withLock { storage[key] = value }
     }
 

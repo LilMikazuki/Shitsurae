@@ -2,7 +2,7 @@ import Foundation
 @testable import ShitsuraeCore
 import Testing
 
-@Test func разбираетПростыеКоманды() throws {
+@Test func parsesSimpleCommands() throws {
     #expect(try ShitsuraeCommand.parse(["dump"]) == .dump(json: false))
     #expect(try ShitsuraeCommand.parse(["dump", "--json"]) == .dump(json: true))
     #expect(try ShitsuraeCommand.parse(["backup"]) == .backup)
@@ -10,7 +10,7 @@ import Testing
     #expect(try ShitsuraeCommand.parse(["-h"]) == .help)
 }
 
-@Test func разбираетПрименение() throws {
+@Test func parsesApply() throws {
     #expect(try ShitsuraeCommand.parse(["apply", "s.json"]) == .apply(
         file: "s.json",
         dryRun: false
@@ -19,9 +19,7 @@ import Testing
         == .apply(file: "s.json", dryRun: true))
 }
 
-/// Главный тест файла. Опечатка в флаге обязана отвергаться, а не молча
-/// превращаться в настоящее применение к Dock пользователя.
-@Test func опечаткаВФлагеПримененияОтвергается() {
+@Test func aTypoInTheApplyFlagIsRejected() {
     for typo in ["--dryrun", "--dry_run", "-dry-run", "--DRY-RUN", "--dry-run=yes"] {
         #expect(throws: CommandParseError.self) {
             try ShitsuraeCommand.parse(["apply", "s.json", typo])
@@ -29,7 +27,7 @@ import Testing
     }
 }
 
-@Test func опечаткаВФлагеДампаОтвергается() {
+@Test func aTypoInTheDumpFlagIsRejected() {
     for typo in ["--jsn", "--JSON", "-json"] {
         #expect(throws: CommandParseError.self) {
             try ShitsuraeCommand.parse(["dump", typo])
@@ -37,7 +35,7 @@ import Testing
     }
 }
 
-@Test func лишнийАргументОтвергается() {
+@Test func anExtraArgumentIsRejected() {
     #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["dump", "--json", "x"]) }
     #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["backup", "x"]) }
     #expect(throws: CommandParseError.self) {
@@ -45,19 +43,18 @@ import Testing
     }
 }
 
-@Test func применениеБезФайлаОтвергается() {
+@Test func applyingWithoutAFileIsRejected() {
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply"]) }
 }
 
-@Test func пустойВводИНеизвестнаяКомандаРазличаются() {
+@Test func emptyInputAndAnUnknownCommandDiffer() {
     #expect(throws: CommandParseError.noCommand) { try ShitsuraeCommand.parse([]) }
     #expect(throws: CommandParseError.unknownCommand("frobnicate")) {
         try ShitsuraeCommand.parse(["frobnicate"])
     }
 }
 
-/// Тексты видит пользователь, поэтому закреплены дословно.
-@Test func текстыОшибокРазбораЗакреплены() {
+@Test func theParseErrorTextsArePinned() {
     #expect("\(CommandParseError.missingFile)"
         == "apply requires a file argument. Usage: apply <file> [--dry-run]")
     #expect(
@@ -66,19 +63,12 @@ import Testing
     )
 }
 
-/// `--help` отвергает мусор так же, как остальные команды. Это осознанное
-/// расхождение с прежним поведением, где хвостовые аргументы молча
-/// игнорировались: молча съеденный аргумент — ровно тот класс дефекта,
-/// из-за которого `--dryrun` когда-то выполнял настоящее применение.
-@Test func подсказкаОтвергаетХвостовыеАргументы() {
+@Test func usageRejectsTrailingArguments() {
     #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["--help", "extra"]) }
     #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["-h", "junk"]) }
 }
 
-/// Забытое имя файла не должно съедаться флагом: иначе `apply --dry-run`
-/// уходит на путь настоящего применения и спасает только то, что файла
-/// с таким именем не существует.
-@Test func флагВместоИмениФайлаЭтоОтсутствующийФайл() {
+@Test func aFlagInsteadOfAFilenameIsAMissingFile() {
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse([
         "apply",
         "--dry-run"
@@ -86,21 +76,17 @@ import Testing
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "-h"]) }
 }
 
-@Test func разбираетВосстановление() throws {
+@Test func parsesRestore() throws {
     #expect(try ShitsuraeCommand.parse(["restore"]) == .restore)
 }
 
-/// Подсказка — единственное место, где пользователь узнаёт о команде,
-/// которую не набрал; пропавшая из текста команда была бы незаметна.
-@Test func подсказкаНазываетКаждуюКоманду() {
+@Test func theUsageTextNamesEveryCommand() {
     for name in ["dump", "backup", "apply", "restore", "--help"] {
         #expect(ShitsuraeCommand.usage.contains(name))
     }
 }
 
-/// `restore` разрушительнее `apply`: он затирает раскладку целиком.
-/// Молча съеденный аргумент здесь стоил бы дороже всего.
-@Test func мусорПослеВосстановленияОтвергается() {
+@Test func trailingGarbageAfterRestoreIsRejected() {
     for junk in ["--dryrun", "--dry-run", "x"] {
         #expect(throws: CommandParseError.self) {
             try ShitsuraeCommand.parse(["restore", junk])

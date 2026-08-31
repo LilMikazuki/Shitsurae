@@ -1,31 +1,30 @@
-# Фикстуры
+# Fixtures
 
 ## `dock-macos-26.5.2.plist`
 
-Домен `com.apple.dock`, снятый с живой системы: macOS 26.5.2 (build 25F84),
-MacBook Pro Mac14,10, Apple M2 Pro. Дата снятия — 2026-08-30.
-Получен через `defaults export com.apple.dock`.
+The `com.apple.dock` domain taken from a live machine: macOS 26.5.2 (build
+25F84), MacBook Pro Mac14,10, Apple M2 Pro, captured 2026-08-30 with
+`defaults export com.apple.dock`.
 
-**Санитизирован.** Из `persistent-apps` оставлены только стоковые приложения
-Apple, десять сторонних записей удалены. Оставшиеся четыре записи сохранены
-байт-в-байт как в оригинале, включая blob-ы `book`, — ничего не синтезировано.
-Все 20 ключей верхнего уровня на месте.
+**Sanitised.** Only stock Apple applications were kept in `persistent-apps`; ten
+third-party entries were removed. The remaining four are byte-for-byte as they
+came, `book` blobs included — nothing was synthesised. All 20 top-level keys are
+present.
 
-Что фикстура обязана проверять:
+What this fixture exists to prove:
 
-- `Apps` (`com.apple.apps.launcher`) — приложение с `LSUIElement=true` лежит
-  в Dock как обычный тайл. `DockReader`/`DockWriter` не имеют права его терять.
-- `tilesize` приходит как **`float`** (82.0), а не `int`.
-- `magnification`, `largesize` и `orientation` в домене **отсутствуют** —
-  это нормально, значения по умолчанию. Отсутствие ключа не ошибка парсинга.
-- В `tile-data` есть ключи, которых нет в спеке: `book`, `dock-extra`,
-  `file-type`, `file-mod-date`, `parent-mod-date`, `is-beta`; на верхнем
-  уровне элемента — `GUID`. Они есть в живом домене, и в модель они
-  **осознанно не переносятся**: `book` — bookmark-блоб, привязанный к
-  конкретной машине, а пресеты обязаны быть переносимыми между машинами.
-  Поэтому `DockWriter` собирает минимальный тайл, а всё остальное Dock
-  достраивает сам при первом же сохранении. Отсутствие этих ключей в
-  результате round-trip — правильное поведение, а не баг: «чинить»
-  писатель, чтобы он их сохранял, не нужно.
+- `Apps` (`com.apple.apps.launcher`) — an application with `LSUIElement=true`
+  sits in the Dock as an ordinary tile. `DockReader` and `DockWriter` must not
+  lose it.
+- `tilesize` arrives as a **float** (82.0), not an int.
+- `magnification`, `largesize` and `orientation` are **absent** from the domain.
+  That is normal: they are defaults, and a missing key is not a parse error.
+- `tile-data` carries keys the model does not know: `book`, `dock-extra`,
+  `file-type`, `file-mod-date`, `parent-mod-date`, `is-beta`, plus `GUID` at the
+  element's top level. They exist in a live domain and are **deliberately not
+  carried into the model**: `book` is a bookmark blob tied to one machine, and
+  layouts must survive being copied to another. `DockWriter` therefore writes a
+  minimal tile and lets the Dock fill in the rest on its next save. Their absence
+  after a round-trip is correct behaviour, not a bug to "fix".
 
-При выходе macOS 27 добавить рядом её фикстуру, эту не удалять.
+When macOS 27 ships, add its fixture alongside this one rather than replacing it.

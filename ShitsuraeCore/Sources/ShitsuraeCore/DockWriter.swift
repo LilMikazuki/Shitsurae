@@ -1,8 +1,5 @@
 import Foundation
 
-/// `DockState` -> домен `com.apple.dock`.
-/// Пишет только те ключи, значения которых есть: `nil` означает,
-/// что ключа в домене не было и добавлять его мы не имеем права.
 struct DockWriter {
     private let store: DockPreferenceStore
 
@@ -18,16 +15,11 @@ struct DockWriter {
         set(state.settings.autohide, DockKey.autohide)
         set(state.settings.showRecents, DockKey.showRecents)
         set(state.settings.orientation?.rawValue, DockKey.orientation)
-        // Результат синхронизации — единственное, что вообще сообщает
-        // об успехе записи. Проглотить его значило бы отчитаться об успехе
-        // и перезапустить Dock после того, как ничего не сохранилось.
         guard store.synchronize() else {
             throw DockWriteError.synchronizeFailed
         }
     }
 
-    /// Минимальный тайл. `book`, `GUID`, `dock-extra` и прочее Dock достроит сам
-    /// при первом же сохранении — они машинно-зависимые и переносу не подлежат.
     static func tile(for app: DockApp) -> [String: Any] {
         let url = URL(fileURLWithPath: app.path, isDirectory: true)
         return [
@@ -43,8 +35,9 @@ struct DockWriter {
         ]
     }
 
-    private func set(_ value: Any?, _ key: String) {
-        guard let value else { return }
+    private func set(_ value: (some Any)?, _ key: String) {
+        // A layout without the setting must clear it: otherwise the previous
+        // layout's orientation or magnification sticks to every later one.
         store.setValue(value, forKey: key)
     }
 }

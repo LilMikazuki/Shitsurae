@@ -1,23 +1,29 @@
 import Foundation
 
 public enum DockBackupError: Error, Equatable {
+    case backupDirectoryUnavailable
+    case exportCouldNotStart
     case exportFailed(status: Int32)
-    /// `defaults export` отчитался кодом 0, но по факту не создал пригодный бэкап.
+    case importCouldNotStart
     case exportProducedInvalidFile
-    /// Восстанавливать нечего: пригодного бэкапа не существует.
     case backupMissing
     case importFailed(status: Int32)
-    /// `defaults import` отчитался кодом 0, но домен не стал бэкапом.
     case importDidNotApply
 }
 
 extension DockBackupError: CustomStringConvertible {
     public var description: String {
         switch self {
+        case .backupDirectoryUnavailable:
+            "The backup folder could not be created."
+        case .exportCouldNotStart:
+            "`defaults export` could not be started."
         case let .exportFailed(status):
             "`defaults export` failed with exit status \(status)."
         case .exportProducedInvalidFile:
             "`defaults export` reported success but did not produce a valid backup file."
+        case .importCouldNotStart:
+            "`defaults import` could not be started."
         case .backupMissing:
             "There is no usable backup to restore from."
         case let .importFailed(status):
@@ -28,15 +34,10 @@ extension DockBackupError: CustomStringConvertible {
     }
 }
 
-/// Полный экспорт домена `com.apple.dock` — страховка на случай,
-/// если формат plist сменится или запись пойдёт не так.
-/// Делается ровно один раз, перед самым первым применением пресета.
 public struct DockBackup: Sendable {
     private let directory: URL
     private let domain: String
 
-    /// Домен вынесен в параметр только ради тестов: восстановление пишет
-    /// в настоящие настройки, и гонять это на `com.apple.dock` нельзя.
     public init(directory: URL, domain: String = DockKey.domain) {
         self.directory = directory
         self.domain = domain
@@ -49,34 +50,35 @@ public struct DockBackup: Sendable {
     }
 
     public var backupURL: URL {
-        directory.appendingPathComponent("\(domain).original.plist")
+        let name = domain.replacingOccurrences(of: "/", with: "_")
+        return directory.appendingPathComponent("\(name).original.plist")
     }
 
     public var exists: Bool {
         Self.isValidBackup(at: backupURL)
     }
 
-    /// Возвращает `true`, если бэкап создан этим вызовом,
-    /// и `false`, если он уже был — существующий не перезаписывается никогда.
-    ///
-    /// Исключение — файл, который не разбирается: он для этого метода
-    /// неотличим от отсутствующего, и на его месте молча появится свежий
-    /// экспорт текущего домена. Спасать в нём нечего, но это значит, что
-    /// пользователь с побитым бэкапом тихо получит новый «оригинал» — тот,
-    /// что было применено последним, а не тот, с которого всё начиналось.
     @discardableResult
-    public func createIfNeeded() throws -> Bool {
+    public func createIfNeeded() throws(DockBackupError) -> Bool {
         if exists {
             return false
         }
-        try FileManager.default.createDirectory(
-            at: directory, withIntermediateDirectories: true
-        )
+        do {
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true
+            )
+        } catch {
+            throw DockBackupError.backupDirectoryUnavailable
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
         process.arguments = ["export", domain, backupURL.path]
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            throw DockBackupError.exportCouldNotStart
+        }
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
@@ -88,34 +90,28 @@ public struct DockBackup: Sendable {
         return true
     }
 
-    /// Возвращает домен к состоянию бэкапа. Сам бэкап остаётся на месте:
-    /// восстановиться можно сколько угодно раз, и терять единственную
-    /// страховку после первого же использования нельзя.
-    ///
-    /// Перезапуск Dock сюда не входит — это дело вызывающего.
-    ///
-    /// Код возврата `defaults import` доверия не заслуживает ровно так же,
-    /// как код возврата `defaults export`: тот отдаёт 0 и когда каталог
-    /// назначения только для чтения, и когда домена не существует. Проверено
-    /// на живой macOS 26.5.2 — именно поэтому `createIfNeeded()` рядом судит
-    /// об успехе по содержимому файла. Восстановление — последняя линия
-    /// обороны пользователя, и «молча не сработало» здесь недопустимо,
-    /// поэтому после импорта домен перечитывается и сверяется с бэкапом.
-    ///
-    /// Это единственный публичный путь записи в домен мимо гейта чтения
-    /// `DockEngine`, и так задумано: восстановление обязано работать именно
-    /// тогда, когда разбор домена падает, то есть когда гейт запретил бы всё.
-    /// Безопасно это потому, что записывается не произвольное состояние, а
-    /// ранее снятый экспорт того же самого домена.
-    public func restore() throws {
+    public func restore() throws(DockBackupError) {
         guard let expected = Self.contents(of: backupURL) else {
             throw DockBackupError.backupMissing
         }
 
+        // `defaults import` merges: a setting the user turned on after the
+        // backup was taken survives it. Clear those first, or the Dock keeps
+        // them and the domain never matches what we promised to restore.
+        let store = CFPreferencesDockStore(domain: domain)
+        for key in DockKey.all where expected[key] == nil {
+            store.setValue(nil, forKey: key)
+        }
+        store.synchronize()
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
         process.arguments = ["import", domain, backupURL.path]
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            throw DockBackupError.importCouldNotStart
+        }
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
@@ -126,22 +122,22 @@ public struct DockBackup: Sendable {
         }
     }
 
-    /// Сверяем подмножеством, а не полным равенством: демон настроек вправе
-    /// дописать в домен свои ключи сразу после импорта, и требовать
-    /// побайтового совпадения значило бы ловить ложные отказы.
     private func domainMatches(_ expected: [String: Any]) -> Bool {
         let store = CFPreferencesDockStore(domain: domain)
-        for (key, value) in expected {
-            guard let actual = store.value(forKey: key) else { return false }
-            guard (actual as AnyObject).isEqual(value as AnyObject) else { return false }
+        store.synchronize()
+        for key in DockKey.all {
+            let wanted = expected[key]
+            let actual = store.value(forKey: key)
+            if wanted == nil, actual == nil {
+                continue
+            }
+            guard let wanted, let actual,
+                  (actual as AnyObject).isEqual(wanted as AnyObject)
+            else { return false }
         }
         return true
     }
 
-    /// `defaults export` возвращает код завершения 0 даже когда ничего не записал:
-    /// каталог назначения недоступен на запись, путь назначения — сам каталог,
-    /// или домен не существует (тогда пишется пустой plist). Поэтому валидность
-    /// бэкапа проверяем по содержимому файла, а не по коду завершения процесса.
     private static func isValidBackup(at url: URL) -> Bool {
         contents(of: url) != nil
     }
