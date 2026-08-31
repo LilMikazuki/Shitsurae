@@ -17,7 +17,12 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
-Package.resolved
 
 # Fastlane / releases
 *.zip
+
+# XcodeGen generates the project from project.yml; it is not tracked.
+Shitsurae.xcodeproj/
+
+# Internal planning notes, not part of the published project.
+docs/

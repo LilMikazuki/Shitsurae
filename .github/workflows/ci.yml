@@ -8,29 +8,43 @@ on:
 
 jobs:
   build:
-    # macos-26 — arm64-раннер, Xcode 26.6 и SwiftFormat 0.62.1 предустановлены.
     runs-on: macos-26
-    # Сборка и тесты укладываются в пару минут; всё, что дольше, — зависший
-    # раннер, и висеть он должен не час, а до внятного отказа.
     timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Показать версии инструментов
+      - name: Install SwiftFormat
+        run: brew install swiftformat
+
+      - name: Tool versions
         run: |
           sw_vers
           xcodebuild -version
           swift --version
           swiftformat --version
 
-      - name: Проверить формат
+      - name: Check formatting
         run: swiftformat --lint .
 
-      - name: Собрать
+      - name: Build the package
         working-directory: ShitsuraeCore
         run: swift build
 
-      - name: Тесты
+      - name: Tests
         working-directory: ShitsuraeCore
         run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      - name: Build the app
+        run: |
+          xcodebuild -project Shitsurae.xcodeproj \
+            -scheme Shitsurae \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build

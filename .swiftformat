@@ -7,6 +7,6 @@
 --commas inline
 --exclude .build
 
-# Правило рассчитано на английский camelCase и калечит русские имена тестов:
-# `тайлСобираетсяВФорматеDock` оно превращает в `тайл собирается В формате dock`.
+# swiftTestingTestCaseNames backtick-quotes camelCase test names,
+# which conflicts with the sentence-name convention in CLAUDE.md.
 --disable swiftTestingTestCaseNames

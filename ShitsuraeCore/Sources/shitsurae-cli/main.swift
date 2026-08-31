@@ -6,7 +6,6 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
-/// Подсказку по запросу печатаем в stdout, а при ошибке — в stderr.
 func printUsage(asError: Bool) {
     if asError {
         FileHandle.standardError.write(Data("\(ShitsuraeCommand.usage)\n".utf8))
@@ -25,14 +24,10 @@ let command: ShitsuraeCommand
 do {
     command = try ShitsuraeCommand.parse(Array(CommandLine.arguments.dropFirst()))
 } catch CommandParseError.noCommand {
-    // Запуск без команды — это не успех: скрипт с `if shitsurae-cli; then`
-    // иначе принял бы «ничего не сделано» за удачу.
     printUsage(asError: true)
     exit(1)
 } catch let error as CommandParseError {
     if case .unknownCommand = error {
-        // В отличие от голого запуска, здесь есть что сказать: команда
-        // была, просто не та.
         FileHandle.standardError.write(Data("\(error)\n".utf8))
         printUsage(asError: true)
         exit(1)
@@ -75,11 +70,9 @@ case let .apply(file, dryRun):
             try print(DockStateFormatter.plainText(DockEngine.live().preview(state)))
         } else {
             try DockEngine.live().apply(state)
-            print("Applied. The Dock is restarting.")
+            print("Applied. The Dock will pick it up.")
         }
     } catch let error as DockRestartError {
-        // К этому моменту домен уже записан и бэкап уже существует — молчать
-        // об этом или мешать с обычной ошибкой было бы нечестно с пользователем.
         fail("""
         The Dock layout was written, but the Dock did not restart: \(error)
         Run `killall Dock` to finish applying it.
