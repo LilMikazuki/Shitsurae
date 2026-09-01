@@ -21,9 +21,13 @@ import SwiftUI.
 
 ## Conventions
 
-- **Do not write narrative comments.** Names and types carry the meaning. A
-  comment is justified only where the next reader would otherwise "simplify"
-  something load-bearing — then one or two lines, no essays.
+- **Do not write comments.** Names and types carry the meaning, and a comment
+  restating the code goes stale at the next edit. Tests included.
+- The one exception is a reader who would otherwise delete or "simplify"
+  something load-bearing and bring the bug back. Then say why it is
+  load-bearing, in two or three lines: the `defaults import` merge in
+  `DockBackup` and the `onKeyUp` append in `HotkeyService` are the shape of it.
+  Never a paragraph, and never a comment about what the code does.
 - Everything in the repository is in English: identifiers, comments, commit
   messages, CI step names.
 - Tests are named as sentences describing the guarantee

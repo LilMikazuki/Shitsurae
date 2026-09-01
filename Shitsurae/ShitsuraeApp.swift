@@ -62,8 +62,9 @@ struct ShitsuraeApp: App {
         Window("Shitsurae Settings", id: "settings") {
             SettingsWindow(model: model, launchAtLogin: SMAppServiceLaunchAtLogin())
         }
+        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 940, height: 620)
+        .defaultSize(width: 716, height: 486)
         .defaultPosition(.center)
     }
 }

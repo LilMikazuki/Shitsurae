@@ -5,65 +5,67 @@ struct GeneralTab: View {
     let launchAtLogin: any LaunchAtLoginControlling
 
     @State private var launchEnabled = false
-
     @State private var launchProblem: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("General")
-                .font(.system(size: 18, weight: .semibold))
-                .padding(.bottom, 16)
+        form
+            .onAppear {
+                launchEnabled = launchAtLogin.isEnabled
+                launchProblem = nil
+            }
+    }
 
-            VStack(alignment: .leading, spacing: 14) {
-                Toggle(isOn: launchBinding) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Launch at login")
-                        Text("Shitsurae keeps running in the menu bar after you close this window.")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
+    private var form: some View {
+        Form {
+            Section {
+                LabeledContent {
+                    Toggle("Launch at login", isOn: launchBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                } label: {
+                    Text("Launch at login")
+                    Text("Shitsurae keeps running in the menu bar after you close this window.")
                 }
 
                 if let launchProblem {
                     Text(launchProblem)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                LabeledContent("Dock layouts folder", value: "~/Library/Application Support")
             }
 
-            Divider().padding(.vertical, 20)
+            Section {
+                about
+            }
+        }
+        .formStyle(.grouped)
+        .contentMargins(.top, 0, for: .scrollContent)
+        // The grouped form keeps about 14pt above its first section that contentMargins does not
+        // remove; 46 lands the first card level with the first sidebar row, as 60 does for the
+        // Dock strip on the layout page.
+        .padding(.top, 46)
+    }
 
-            HStack(alignment: .top, spacing: 16) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Shitsurae").font(.system(size: 18, weight: .semibold))
-                    Text("Version \(shortVersion) (\(build)) · MIT License")
-                        .font(.system(size: 13.5))
-                        .foregroundStyle(.secondary)
-                    Link(
-                        "github.com/LilMikazuki/shitsurae",
-                        destination: URL(string: "https://github.com/LilMikazuki/shitsurae")!
-                    )
-                    .font(.system(size: 13.5))
-                }
-                .padding(.top, 4)
+    private var about: some View {
+        HStack(spacing: 14) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Shitsurae")
+                    .font(.headline)
+                Text("Version \(shortVersion) (\(build)) · MIT License")
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
-
-            Text("Dock layouts are stored in ~/Library/Application Support/Shitsurae.")
-                .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
         }
-        .padding(EdgeInsets(top: 22, leading: 26, bottom: 22, trailing: 26))
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onAppear {
-            launchEnabled = launchAtLogin.isEnabled
-            launchProblem = nil
-        }
+        .padding(.vertical, 4)
     }
 
     private var launchBinding: Binding<Bool> {

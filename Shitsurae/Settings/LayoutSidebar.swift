@@ -3,7 +3,7 @@ import SwiftUI
 
 struct LayoutSidebar: View {
     @Bindable var model: AppModel
-    @Binding var showingGeneral: Bool
+    let page: SettingsPage
     @Environment(\.openWindow) private var openWindow
 
     @State private var editingID: UUID?
@@ -12,130 +12,139 @@ struct LayoutSidebar: View {
     @State private var renameProblem: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            list
+        list
+            .safeAreaBar(edge: .bottom) { footer }
+            .onChange(of: model.selectedLayoutID) { _, _ in
+                if let editingID, editingID != model.selectedLayoutID {
+                    commitRename()
+                }
+            }
+    }
+
+    private var selection: Binding<SettingsPage.Page?> {
+        Binding(
+            get: {
+                if page.showingGeneral {
+                    return .general
+                }
+                return model.selectedLayoutID.map { .layout($0) }
+            },
+            set: { new in
+                switch new {
+                case .general:
+                    page.showingGeneral = true
+                case let .layout(id):
+                    page.showingGeneral = false
+                    model.selectedLayoutID = id
+                case nil:
+                    break
+                }
+            }
+        )
+    }
+
+    private var list: some View {
+        List(selection: selection) {
+            if model.layouts.isEmpty {
+                emptyNote
+            } else {
+                Section {
+                    ForEach(model.layouts) { layout in
+                        row(layout)
+                            .tag(SettingsPage.Page.layout(layout.id))
+                            .renameAction { startRename(layout) }
+                    }
+                }
+            }
 
             if !model.unreadableFiles.isEmpty {
                 Text("\(model.unreadableFiles.count) layout file(s) could not be read")
-                    .font(.system(size: 11.5))
+                    .font(.footnote)
                     .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 17)
-                    .padding(.bottom, 6)
                     .help(model.unreadableFiles.joined(separator: "\n"))
             }
 
-            Rectangle()
-                .fill(.separator)
-                .frame(height: 0.5)
-            footer
-        }
-        .onChange(of: model.selectedLayoutID) { _, _ in
-            showingGeneral = false
-            if let editingID, editingID != model.selectedLayoutID {
-                commitRename()
+            Section {
+                Label("General", systemImage: "gearshape")
+                    .tag(SettingsPage.Page.general)
             }
+        }
+        .listStyle(.sidebar)
+        .contextMenu(forSelectionType: SettingsPage.Page.self) { pages in
+            layoutMenu(for: pages.first)
+        }
+        .onKeyPress(.return) {
+            guard editingID == nil, let layout = model.selectedLayout else { return .ignored }
+            startRename(layout)
+            return .handled
         }
     }
 
     @ViewBuilder
-    private var list: some View {
-        if model.layouts.isEmpty {
-            Text(
-                model.storeUnavailable
-                    ? "Can’t read your saved layouts. They are still on disk — check "
-                    + "~/Library/Application Support/Shitsurae."
-                    : "No layouts yet — save your current Dock to start"
-            )
-            .font(.system(size: 13.5))
-            .foregroundStyle(model
-                .storeUnavailable ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
-            .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(EdgeInsets(top: 14, leading: 17, bottom: 14, trailing: 17))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else {
-            List(selection: $model.selectedLayoutID) {
-                ForEach(model.layouts) { layout in
-                    row(layout)
-                        .tag(layout.id)
+    private func layoutMenu(for selected: SettingsPage.Page?) -> some View {
+        if case let .layout(id) = selected,
+           let layout = model.layouts.first(where: { $0.id == id })
+        {
+            Button("Apply") {
+                Task {
+                    await model.apply(id: id)
                 }
             }
-            .listStyle(.sidebar)
-            .onKeyPress(.return) {
-                guard editingID == nil, let layout = model.selectedLayout else { return .ignored }
-                startRename(layout)
-                return .handled
+            .disabled(id == model.activeLayoutID || model.isChangingDock)
+
+            RenameButton()
+
+            Divider()
+
+            Button("Delete", role: .destructive) {
+                model.selectedLayoutID = layout.id
+                model.askDelete()
             }
         }
     }
 
     private func row(_ layout: DockLayout) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                if editingID == layout.id {
+        Label {
+            if editingID == layout.id {
+                VStack(alignment: .leading, spacing: 2) {
                     TextField("", text: $editValue)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15))
                         .focused($editFocused)
                         .onSubmit(commitRename)
                         .onExitCommand {
                             editingID = nil
                             renameProblem = nil
                         }
-                } else {
-                    Text(layout.name)
-                        .font(.system(size: 15))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+
+                    if let renameProblem {
+                        Text(renameProblem)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-
-                if layout.id == model.activeLayoutID {
-                    Text("Active")
-                        .font(.system(size: 10, weight: .semibold))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1.5)
-                        .background(.quaternary, in: .rect(cornerRadius: 4))
-                        .foregroundStyle(.secondary)
-                }
+            } else {
+                Text(layout.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-
-            if editingID == layout.id, let renameProblem {
-                Text(renameProblem)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Text(LayoutSummary.appCount(layout))
-                .font(.system(size: 12.5))
-                .foregroundStyle(.secondary)
+        } icon: {
+            Image(systemName: "rectangle.bottomthird.inset.filled")
         }
-        .padding(.vertical, 5)
-        .contextMenu {
-            let isApplied = layout.id == model.activeLayoutID
+        .badge(layout.id == model.activeLayoutID ? Text("Active") : nil)
+    }
 
-            Button("Apply") {
-                Task {
-                    await model.apply(id: layout.id)
-                }
-            }
-            .disabled(isApplied || model.isChangingDock)
-
-            Button("Rename…") {
-                model.selectedLayoutID = layout.id
-                startRename(layout)
-            }
-
-            Divider()
-
-            Button("Delete…", role: .destructive) {
-                model.selectedLayoutID = layout.id
-                model.askDelete()
-            }
-        }
+    private var emptyNote: some View {
+        Text(
+            model.storeUnavailable
+                ? "Can’t read your saved layouts. They are still on disk — check "
+                + "~/Library/Application Support/Shitsurae."
+                : "No layouts yet — save your current Dock to start"
+        )
+        .font(.callout)
+        .foregroundStyle(model.storeUnavailable ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 6)
     }
 
     private var footer: some View {
@@ -144,43 +153,21 @@ struct LayoutSidebar: View {
                 NSApplication.shared.activate()
                 openWindow(id: "save-layout")
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 13.5))
-                        .frame(width: 14)
-                    Text("New Layout")
-                        .font(.system(size: 13.5))
-                }
+                Label("New Layout", systemImage: "plus")
             }
             .buttonStyle(.plain)
             .pointerStyle(.link)
 
             Spacer()
-
-            Button {
-                showingGeneral.toggle()
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        showingGeneral
-                            ? AnyShapeStyle(Color.primary.opacity(0.07))
-                            : AnyShapeStyle(.clear),
-                        in: .rect(cornerRadius: 6)
-                    )
-            }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("General settings")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 10)
+        .padding(.leading, 17)
+        .padding(.trailing, 12)
         .frame(height: 34)
+        .padding(.bottom, 8)
     }
 
     private func startRename(_ layout: DockLayout) {
+        model.selectedLayoutID = layout.id
         editValue = layout.name
         editingID = layout.id
         renameProblem = nil
