@@ -657,3 +657,58 @@ private final class Flag: @unchecked Sendable {
     #expect(engine.readCount == 0)
     #expect(model.activeLayoutID == nil)
 }
+
+private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> DockLayout {
+    var settings = DockSettings()
+    settings.autohide = autohide
+    return DockLayout(order: 0, name: name, apps: [], settings: settings)
+}
+
+@Test @MainActor func applyingTheActiveLayoutAgainDoesNotWriteTheDock() async throws {
+    let layout = settingsLayout()
+    let engine = FakeDockEngine()
+    let (model, _, _) = try makeModel(engine: engine, layouts: [layout])
+
+    await model.apply(id: layout.id)
+    engine.stateToReturn = layout.dockState
+    await model.apply(id: layout.id)
+
+    #expect(model.activeLayoutID == layout.id)
+    #expect(engine.applied.count == 1)
+}
+
+@Test @MainActor func aLayoutThatDriftedFromTheDockIsReappliedEvenWhenActive() async throws {
+    let layout = settingsLayout()
+    let engine = FakeDockEngine()
+    let (model, _, _) = try makeModel(engine: engine, layouts: [layout])
+
+    await model.apply(id: layout.id)
+    engine.stateToReturn = DockState(apps: [], settings: DockSettings())
+    await model.apply(id: layout.id)
+
+    #expect(engine.applied.count == 2)
+}
+
+@Test @MainActor func applyingAnInactiveLayoutAlwaysWrites() async throws {
+    let first = settingsLayout("Work")
+    let second = settingsLayout("Personal", autohide: false)
+    let engine = FakeDockEngine()
+    let (model, _, _) = try makeModel(engine: engine, layouts: [first, second])
+
+    engine.stateToReturn = second.dockState
+    await model.apply(id: second.id)
+
+    #expect(engine.applied.count == 1)
+}
+
+@Test @MainActor func aSkippedApplyStillMarksTheLayoutUsed() async throws {
+    let layout = settingsLayout()
+    let engine = FakeDockEngine()
+    let (model, _, _) = try makeModel(engine: engine, layouts: [layout])
+
+    await model.apply(id: layout.id)
+    engine.stateToReturn = layout.dockState
+    await model.apply(id: layout.id)
+
+    #expect(model.layouts.first?.lastUsedAt != nil)
+}

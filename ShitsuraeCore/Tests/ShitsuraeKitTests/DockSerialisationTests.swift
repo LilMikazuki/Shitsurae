@@ -24,6 +24,14 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
         Thread.sleep(forTimeInterval: 0.05)
         lock.withLock { inFlight -= 1 }
     }
+
+    @discardableResult
+    func applyIfNeeded(_ state: DockState) throws -> Bool {
+        let current = try read()
+        guard state != current else { return false }
+        try apply(state)
+        return true
+    }
 }
 
 @Test @MainActor func twoAppliesNeverTouchTheDockAtOnce() async throws {
@@ -101,6 +109,12 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     func apply(_: DockState) throws {
         enteredGate.signal()
         release.wait()
+    }
+
+    @discardableResult
+    func applyIfNeeded(_ state: DockState) throws -> Bool {
+        try apply(state)
+        return true
     }
 }
 

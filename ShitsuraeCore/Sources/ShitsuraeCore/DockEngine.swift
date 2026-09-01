@@ -43,4 +43,14 @@ public struct DockEngine: Sendable {
         try DockWriter(store: store).write(state)
         try restarter.restart()
     }
+
+    @discardableResult
+    public func applyIfNeeded(_ state: DockState) throws -> Bool {
+        let current = try read()
+        try backup.createIfNeeded()
+        guard try preview(state) != current else { return false }
+        try DockWriter(store: store).write(state)
+        try restarter.restart()
+        return true
+    }
 }

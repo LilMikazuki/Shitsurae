@@ -20,6 +20,13 @@ public final class SwitchService: Sendable {
         lastAppliedLayoutID = layout.id
     }
 
+    @discardableResult
+    public func applyIfNeeded(_ layout: DockLayout) throws -> Bool {
+        let wrote = try engine.applyIfNeeded(layout.dockState(skippingMissing: .default))
+        lastAppliedLayoutID = layout.id
+        return wrote
+    }
+
     public func readCurrentState() throws -> DockState {
         try engine.read()
     }

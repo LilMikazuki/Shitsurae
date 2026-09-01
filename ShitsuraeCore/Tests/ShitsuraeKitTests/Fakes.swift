@@ -57,6 +57,14 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
             throw thrown
         }
     }
+
+    @discardableResult
+    func applyIfNeeded(_ state: DockState) throws -> Bool {
+        let current = try read()
+        guard state != current else { return false }
+        try apply(state)
+        return true
+    }
 }
 
 final class FakeRestarter: DockRestarting, @unchecked Sendable {

@@ -199,3 +199,53 @@ private final class FakeDockProcess: DockProcess, @unchecked Sendable {
     try DockRestarter(processes: { [dock] }).restart()
     #expect(dock.wasAsked)
 }
+
+@Test func applyingAStateTheDockAlreadyHoldsWritesNothing() throws {
+    let dir = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let restarter = FakeRestarter()
+    let engine = try DockEngine(
+        store: fixtureStore(),
+        backup: DockBackup(directory: dir),
+        restarter: restarter
+    )
+
+    #expect(try engine.applyIfNeeded(engine.read()) == false)
+    #expect(restarter.restarts == 0)
+}
+
+@Test func applyingADifferentStateWritesAndRestarts() throws {
+    let dir = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let restarter = FakeRestarter()
+    let engine = try DockEngine(
+        store: fixtureStore(),
+        backup: DockBackup(directory: dir),
+        restarter: restarter
+    )
+
+    var wanted = try engine.read()
+    wanted.settings.autohide = !(wanted.settings.autohide ?? false)
+
+    #expect(try engine.applyIfNeeded(wanted) == true)
+    #expect(restarter.restarts == 1)
+    #expect(try engine.read().settings.autohide == wanted.settings.autohide)
+}
+
+@Test func aSkippedApplyStillLeavesABackup() throws {
+    let dir = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let engine = try DockEngine(
+        store: fixtureStore(),
+        backup: DockBackup(directory: dir),
+        restarter: FakeRestarter()
+    )
+
+    _ = try engine.applyIfNeeded(engine.read())
+
+    let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+    #expect(files.isEmpty == false)
+}

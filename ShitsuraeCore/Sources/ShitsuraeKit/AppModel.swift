@@ -158,8 +158,18 @@ public final class AppModel {
         isChangingDock = true
         defer { isChangingDock = false }
         let switcher = switcher
+        // The skip is allowed only for the already-active layout: the active mark is set only
+        // after a successful apply including the restart, so after a refused restart there is no
+        // mark and the retry takes the normal writing path.
+        let reapplying = id == activeLayoutID
         do {
-            try await offMainThread { try switcher.apply(snapshot) }
+            try await offMainThread {
+                if reapplying {
+                    try switcher.applyIfNeeded(snapshot)
+                } else {
+                    try switcher.apply(snapshot)
+                }
+            }
             if quitsOtherApps {
                 quitOthers(for: snapshot)
             }
