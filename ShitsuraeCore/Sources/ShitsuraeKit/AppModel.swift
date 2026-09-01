@@ -215,6 +215,22 @@ public final class AppModel {
         selectedLayoutID = layout.id
     }
 
+    public func seedInitialLayoutIfNeeded() {
+        guard layouts.isEmpty, unreadableFiles.isEmpty, !storeUnavailable else { return }
+        guard let state = try? switcher.readCurrentState() else { return }
+
+        let layout = DockLayout(order: 0, name: "Dock 1", state: state).withUniqueApps()
+        do {
+            try store.save(layout)
+        } catch {
+            return
+        }
+
+        switcher.lastAppliedLayoutID = layout.id
+        reload()
+        selectedLayoutID = layout.id
+    }
+
     public func deleteSelected() {
         guard let id = selectedLayoutID else { return }
         delete(id: id)

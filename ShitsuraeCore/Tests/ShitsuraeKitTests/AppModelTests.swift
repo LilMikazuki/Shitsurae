@@ -539,3 +539,121 @@ private final class Flag: @unchecked Sendable {
     #expect(model.shortcuts.recordingID == nil, "recording cannot outlive the screen it belongs to")
     #expect(hotkeys.enabled, "leaving the screen must give the user their shortcuts back")
 }
+
+@Test @MainActor func anEmptyListSeedsTheCurrentDockAsDock1() throws {
+    let engine = FakeDockEngine()
+    engine.stateToReturn = DockState(
+        apps: [DockApp(
+            path: "/Applications/Safari.app",
+            bundleId: "com.apple.Safari",
+            label: "Safari"
+        )],
+        settings: DockSettings()
+    )
+    let (model, _, _) = try makeModel(engine: engine)
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(model.layouts.count == 1)
+    #expect(model.layouts.first?.name == "Dock 1")
+    #expect(model.layouts.first?.apps.map(\.bundleId) == ["com.apple.Safari"])
+    #expect(engine.applied.isEmpty)
+}
+
+@Test @MainActor func theSeededLayoutIsMarkedActive() throws {
+    let (model, _, _) = try makeModel()
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(model.activeLayoutID != nil)
+    #expect(model.activeLayoutID == model.layouts.first?.id)
+}
+
+@Test @MainActor func aStoreThatAlreadyHasLayoutsIsNotSeeded() throws {
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")])
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(model.layouts.map(\.name) == ["Work"])
+    #expect(model.activeLayoutID == nil)
+}
+
+@Test @MainActor func aDockThatCannotBeReadSeedsNothingAndRaisesNoAlert() throws {
+    let engine = FakeDockEngine()
+    engine.readError = DockReadError.wrongType(key: "persistent-apps", expected: "Array")
+    let (model, _, _) = try makeModel(engine: engine)
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(model.layouts.isEmpty)
+    #expect(model.alert == nil)
+}
+
+@Test @MainActor func anUnreadableStoreIsNotSeeded() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-unreadable-\(UUID().uuidString)")
+    let store = LayoutStore(directory: dir)
+    try store.save(testLayout("Work"))
+    try FileManager.default.setAttributes([.posixPermissions: 0o333], ofItemAtPath: dir.path)
+    defer {
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: dir.path
+        )
+    }
+
+    let engine = FakeDockEngine()
+    let defaults = temporaryDefaults()
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: engine, defaults: defaults),
+        restorer: RestoreService(
+            backup: DockBackup(
+                directory: dir.appendingPathComponent("backup"),
+                domain: randomDomain()
+            ),
+            restarter: FakeRestarter(),
+            defaults: defaults
+        ),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    model.reload()
+    #expect(model.storeUnavailable)
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(engine.readCount == 0)
+    #expect(model.activeLayoutID == nil)
+}
+
+@Test @MainActor func aStoreWhoseFilesCannotBeParsedIsNotSeeded() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-unparseable-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    try Data("not valid json".utf8).write(to: dir.appendingPathComponent("broken.json"))
+    let store = LayoutStore(directory: dir)
+
+    let engine = FakeDockEngine()
+    let defaults = temporaryDefaults()
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: engine, defaults: defaults),
+        restorer: RestoreService(
+            backup: DockBackup(
+                directory: dir.appendingPathComponent("backup"),
+                domain: randomDomain()
+            ),
+            restarter: FakeRestarter(),
+            defaults: defaults
+        ),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    model.reload()
+    #expect(model.layouts.isEmpty)
+    #expect(model.unreadableFiles.isEmpty == false)
+    #expect(model.storeUnavailable == false)
+
+    model.seedInitialLayoutIfNeeded()
+
+    #expect(engine.readCount == 0)
+    #expect(model.activeLayoutID == nil)
+}

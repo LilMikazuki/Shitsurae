@@ -36,6 +36,7 @@ struct ShitsuraeApp: App {
             restorer: restorer
         )
         model.reload()
+        model.seedInitialLayoutIfNeeded()
         model.shortcuts.onTrigger { [weak model] id in
             Task { await model?.apply(id: id) }
         }
