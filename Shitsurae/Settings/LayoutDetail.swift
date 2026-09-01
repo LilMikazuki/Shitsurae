@@ -73,17 +73,24 @@ struct LayoutDetail: View {
                 }
 
                 LabeledContent {
-                    Toggle("Auto-Quit Apps", isOn: $model.quitsOtherApps)
+                    Toggle("Auto-Quit Apps", isOn: quitsOtherApps)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
                 } label: {
                     Text("Auto-Quit Apps")
-                    Text("Quits apps outside the layout you apply, for every layout")
+                    Text("Automatically quits apps not in this layout")
                 }
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var quitsOtherApps: Binding<Bool> {
+        Binding(
+            get: { layout.quitsOtherApps },
+            set: { model.setQuitsOtherApps(id: layout.id, $0) }
+        )
     }
 
     @ViewBuilder

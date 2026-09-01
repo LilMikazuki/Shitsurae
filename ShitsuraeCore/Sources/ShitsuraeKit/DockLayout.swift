@@ -8,6 +8,7 @@ public struct DockLayout: Identifiable, Codable, Equatable, Sendable {
     public var apps: [DockApp]
     public var settings: DockSettings
     public var lastUsedAt: Date?
+    public var quitsOtherApps: Bool
 
     public init(
         id: UUID = UUID(),
@@ -15,7 +16,8 @@ public struct DockLayout: Identifiable, Codable, Equatable, Sendable {
         name: String,
         apps: [DockApp],
         settings: DockSettings,
-        lastUsedAt: Date? = nil
+        lastUsedAt: Date? = nil,
+        quitsOtherApps: Bool = false
     ) {
         self.id = id
         self.order = order
@@ -23,6 +25,18 @@ public struct DockLayout: Identifiable, Codable, Equatable, Sendable {
         self.apps = apps
         self.settings = settings
         self.lastUsedAt = lastUsedAt
+        self.quitsOtherApps = quitsOtherApps
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        order = try container.decode(Int.self, forKey: .order)
+        name = try container.decode(String.self, forKey: .name)
+        apps = try container.decode([DockApp].self, forKey: .apps)
+        settings = try container.decode(DockSettings.self, forKey: .settings)
+        lastUsedAt = try container.decodeIfPresent(Date.self, forKey: .lastUsedAt)
+        quitsOtherApps = try container.decodeIfPresent(Bool.self, forKey: .quitsOtherApps) ?? false
     }
 
     public init(id: UUID = UUID(), order: Int, name: String, state: DockState) {

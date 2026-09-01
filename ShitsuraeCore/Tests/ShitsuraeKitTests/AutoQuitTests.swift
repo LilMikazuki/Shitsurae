@@ -5,114 +5,126 @@ import Testing
 
 private let realAppPath = "/System/Library/CoreServices/Finder.app"
 
-@MainActor
-private func model(
-    quitter: FakeAppQuitter,
-    quitsOtherApps: Bool,
-    apps: [String]
-) throws -> (AppModel, DockLayout) {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-autoquit-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
-    let layout = DockLayout(
-        order: 0,
-        name: "Work",
+private func layout(
+    _ name: String,
+    order: Int,
+    apps: [String],
+    quitsOtherApps: Bool
+) -> DockLayout {
+    DockLayout(
+        order: order,
+        name: name,
         apps: apps.map { DockApp(path: realAppPath, bundleId: $0, label: $0) },
-        settings: DockSettings()
+        settings: DockSettings(),
+        quitsOtherApps: quitsOtherApps
     )
-    try store.saveAll([layout])
-    let defaults = temporaryDefaults()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
-    )
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
-        quitter: quitter,
-        defaults: defaults
-    )
-    model.reload()
-    model.quitsOtherApps = quitsOtherApps
-    return try (model, #require(model.layouts.first))
 }
 
-@Test @MainActor func applyingQuitsOnlyTheAppsOutsideTheLayout() async throws {
-    let quitter = FakeAppQuitter(running: ["a.app", "b.app", "stray.app"])
-    let (model, layout) = try model(
-        quitter: quitter,
-        quitsOtherApps: true,
-        apps: ["a.app", "b.app"]
-    )
-
-    await model.apply(id: layout.id)
-
-    #expect(quitter.quitted == ["stray.app"])
-}
-
-@Test @MainActor func applyingQuitsNothingWhenTheSettingIsOff() async throws {
-    let quitter = FakeAppQuitter(running: ["a.app", "stray.app"])
-    let (model, layout) = try model(quitter: quitter, quitsOtherApps: false, apps: ["a.app"])
-
-    await model.apply(id: layout.id)
-
-    #expect(quitter.quitted.isEmpty)
-}
-
-@Test @MainActor func aFailedApplyQuitsNothing() async throws {
-    let quitter = FakeAppQuitter(running: ["stray.app"])
-    let dir = FileManager.default.temporaryDirectory
+private func temporaryStore() -> (directory: URL, store: LayoutStore) {
+    let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-autoquit-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
-    try store.saveAll([testLayout("Work", order: 0)])
+    return (directory, LayoutStore(directory: directory))
+}
+
+@MainActor
+private func makeModel(
+    in directory: URL,
+    store: LayoutStore,
+    quitter: any AppQuitting,
+    engine: FakeDockEngine = FakeDockEngine()
+) -> AppModel {
     let defaults = temporaryDefaults()
-    let engine = FakeDockEngine()
-    engine.applyError = DockWriteError.synchronizeFailed
     let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
+        directory: directory.appendingPathComponent("backup"),
+        domain: directory.appendingPathComponent("domain.plist").path
     )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
         restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
-        quitter: quitter,
-        defaults: defaults
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
+        quitter: quitter
     )
     model.reload()
-    model.quitsOtherApps = true
+    return model
+}
+
+@Test @MainActor func applyingQuitsOnlyTheAppsOutsideTheLayout() async throws {
+    let quitter = FakeAppQuitter(running: ["a.app", "b.app", "stray.app"])
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: ["a.app", "b.app"], quitsOtherApps: true))
+    let model = makeModel(in: directory, store: store, quitter: quitter)
+
+    try await model.apply(id: #require(model.layouts.first).id)
+
+    #expect(quitter.quitted == ["stray.app"])
+}
+
+@Test @MainActor func applyingQuitsNothingWhenTheLayoutHasTheSettingOff() async throws {
+    let quitter = FakeAppQuitter(running: ["a.app", "stray.app"])
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
+    let model = makeModel(in: directory, store: store, quitter: quitter)
+
+    try await model.apply(id: #require(model.layouts.first).id)
+
+    #expect(quitter.quitted.isEmpty)
+}
+
+@Test @MainActor func applyingALayoutUsesItsOwnSettingNotAnotherLayouts() async throws {
+    let quitter = FakeAppQuitter(running: ["a.app", "stray.app"])
+    let (directory, store) = temporaryStore()
+    let quiet = layout("Quiet", order: 0, apps: ["a.app"], quitsOtherApps: false)
+    let strict = layout("Strict", order: 1, apps: ["a.app"], quitsOtherApps: true)
+    try store.saveAll([quiet, strict])
+    let model = makeModel(in: directory, store: store, quitter: quitter)
+
+    await model.apply(id: quiet.id)
+    #expect(quitter.quitted.isEmpty, "the other layout's setting must not leak into this apply")
+
+    await model.apply(id: strict.id)
+    #expect(quitter.quitted == ["stray.app"])
+}
+
+@Test @MainActor func aFailedApplyQuitsNothing() async throws {
+    let quitter = FakeAppQuitter(running: ["stray.app"])
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: true))
+    let engine = FakeDockEngine()
+    engine.applyError = DockWriteError.synchronizeFailed
+    let model = makeModel(in: directory, store: store, quitter: quitter, engine: engine)
 
     try await model.apply(id: #require(model.layouts.first).id)
 
     #expect(quitter.quitted.isEmpty, "a Dock that did not change must not cost the user their apps")
 }
 
-@Test @MainActor func theSettingSurvivesRecreatingTheModel() {
-    let defaults = temporaryDefaults()
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-autoquit-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
+@Test @MainActor func theSettingIsSavedWithItsLayout() throws {
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
+    let first = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+
+    try first.setQuitsOtherApps(id: #require(first.layouts.first).id, true)
+
+    let second = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+    #expect(second.layouts.map(\.quitsOtherApps) == [true])
+}
+
+@Test @MainActor func turningAutoQuitOnKeepsTheActiveLayoutActive() async throws {
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
+    let model = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+    let id = try #require(model.layouts.first).id
+    await model.apply(id: id)
+    #expect(model.activeLayoutID == id)
+
+    model.setQuitsOtherApps(id: id, true)
+
+    #expect(
+        model.activeLayoutID == id,
+        "the Dock still holds this layout; only its setting changed"
     )
-    func make() -> AppModel {
-        AppModel(
-            store: store,
-            switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-            restorer: RestoreService(
-                backup: backup,
-                restarter: FakeRestarter(),
-                defaults: defaults
-            ),
-            quitter: FakeAppQuitter(),
-            defaults: defaults
-        )
-    }
-    #expect(make().quitsOtherApps == false)
-    make().quitsOtherApps = true
-    #expect(make().quitsOtherApps)
+    #expect(model.layouts.first?.quitsOtherApps == true)
 }
 
 @Test func theQuitFilterSparesFinderTheAppItselfAndBackgroundAgents() {
@@ -143,47 +155,30 @@ private func model(
 
 @Test @MainActor func anEmptyLayoutQuitsNothing() async throws {
     let quitter = FakeAppQuitter(running: ["a.app", "b.app"])
-    let (model, layout) = try model(quitter: quitter, quitsOtherApps: true, apps: [])
+    let (directory, store) = temporaryStore()
+    try store.save(layout("Work", order: 0, apps: [], quitsOtherApps: true))
+    let model = makeModel(in: directory, store: store, quitter: quitter)
 
-    await model.apply(id: layout.id)
+    try await model.apply(id: #require(model.layouts.first).id)
 
     #expect(quitter.quitted.isEmpty, "an empty layout must not read as \"quit everything\"")
 }
 
 @Test @MainActor func aLayoutWhoseAppsAreAllGoneQuitsNothing() async throws {
     let quitter = FakeAppQuitter(running: ["gone.a", "stray.app"])
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-gone-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
-    let layout = DockLayout(
+    let (directory, store) = temporaryStore()
+    try store.save(DockLayout(
         order: 0,
         name: "Work",
         apps: [DockApp(
-            path: dir.appendingPathComponent("Gone.app").path,
+            path: directory.appendingPathComponent("Gone.app").path,
             bundleId: "gone.a",
             label: "Gone"
         )],
-        settings: DockSettings()
-    )
-    try store.save(layout)
-    let defaults = temporaryDefaults()
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-        restorer: RestoreService(
-            backup: DockBackup(
-                directory: dir.appendingPathComponent("backup"),
-                domain: dir.appendingPathComponent("domain.plist").path
-            ),
-            restarter: FakeRestarter(),
-            defaults: defaults
-        ),
-        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
-        quitter: quitter,
-        defaults: defaults
-    )
-    model.reload()
-    model.quitsOtherApps = true
+        settings: DockSettings(),
+        quitsOtherApps: true
+    ))
+    let model = makeModel(in: directory, store: store, quitter: quitter)
 
     try await model.apply(id: #require(model.layouts.first).id)
 

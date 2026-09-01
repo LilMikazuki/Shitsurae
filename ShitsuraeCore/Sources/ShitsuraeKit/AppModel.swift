@@ -76,7 +76,6 @@ public final class AppModel {
     public var alert: ShitsuraeAlertKind?
 
     private let quitter: any AppQuitting
-    private let defaults: UserDefaults
     private let store: LayoutStore
     private let switcher: SwitchService
     private let restorer: RestoreService
@@ -87,16 +86,13 @@ public final class AppModel {
         switcher: SwitchService,
         restorer: RestoreService,
         shortcuts: ShortcutRecorder = ShortcutRecorder(),
-        quitter: any AppQuitting = WorkspaceAppQuitter(),
-        defaults: UserDefaults = .standard
+        quitter: any AppQuitting = WorkspaceAppQuitter()
     ) {
         self.store = store
         self.switcher = switcher
         self.restorer = restorer
         self.shortcuts = shortcuts
         self.quitter = quitter
-        self.defaults = defaults
-        quitsOtherAppsMirror = defaults.bool(forKey: Self.quitsOtherAppsKey)
         activeLayoutID = switcher.lastAppliedLayoutID
     }
 
@@ -114,19 +110,6 @@ public final class AppModel {
     /// flight would interleave preference writes and leave the active mark
     /// describing whichever finished last.
     public private(set) var isChangingDock = false
-
-    private static let quitsOtherAppsKey = "quitsOtherApps"
-
-    private var quitsOtherAppsMirror = false
-
-    /// Applies to every layout, not to one: the Dock holds one arrangement.
-    public var quitsOtherApps: Bool {
-        get { quitsOtherAppsMirror }
-        set {
-            quitsOtherAppsMirror = newValue
-            defaults.set(newValue, forKey: Self.quitsOtherAppsKey)
-        }
-    }
 
     private func syncServices() {
         activeLayoutID = switcher.lastAppliedLayoutID
@@ -170,7 +153,7 @@ public final class AppModel {
                     try switcher.apply(snapshot)
                 }
             }
-            if quitsOtherApps {
+            if snapshot.quitsOtherApps {
                 quitOthers(for: snapshot)
             }
             selectedLayoutID = id
@@ -278,6 +261,21 @@ public final class AppModel {
         }
         reload()
         return true
+    }
+
+    public func setQuitsOtherApps(id: UUID, _ on: Bool) {
+        guard var layout = layouts.first(where: { $0.id == id }),
+              layout.quitsOtherApps != on
+        else { return }
+
+        layout.quitsOtherApps = on
+        do {
+            try store.save(layout)
+        } catch {
+            alert = .saveFailed
+            return
+        }
+        reload()
     }
 
     public func moveApp(in id: UUID, from: Int, to: Int) {

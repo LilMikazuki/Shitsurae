@@ -33,6 +33,36 @@ private func layout(_ name: String, order: Int) -> DockLayout {
     #expect(try JSONDecoder().decode(DockLayout.self, from: data) == original)
 }
 
+@Test func theAutoQuitFlagSurvivesCodable() throws {
+    var original = layout("Work", order: 0)
+    original.quitsOtherApps = true
+    let data = try JSONEncoder().encode(original)
+    #expect(try JSONDecoder().decode(DockLayout.self, from: data).quitsOtherApps)
+}
+
+@Test func aLayoutFileWithoutTheSettingReadsAsOff() throws {
+    let directory = try temporaryDirectory()
+    let store = LayoutStore(directory: directory)
+    var saved = layout("Work", order: 0)
+    saved.quitsOtherApps = true
+    try store.save(saved)
+    let file = try #require(
+        try FileManager.default
+            .contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .first { $0.pathExtension == "json" }
+    )
+    var json = try #require(
+        try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any]
+    )
+    #expect(json.removeValue(forKey: "quitsOtherApps") as? Bool == true)
+    try JSONSerialization.data(withJSONObject: json).write(to: file)
+
+    let loaded = try store.load()
+
+    #expect(loaded.unreadable.isEmpty)
+    #expect(loaded.layouts.map(\.quitsOtherApps) == [false])
+}
+
 @Test func aLayoutBuildsDockStateFromItsOwnFields() {
     let p = layout("Work", order: 0)
     #expect(p.dockState.apps == p.apps)

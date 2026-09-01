@@ -14,9 +14,9 @@ occasion at hand. Work, personal, screen sharing — each gets its own Dock.
   Dock's own settings — position, tile size, magnification and its size,
   auto-hide, and whether recent applications are shown.
 - **Switch layouts** from the menu bar, or bind a global hotkey to each one.
-- **Optionally quit what you left behind.** With Auto-Quit on, applying a layout
-  asks the applications outside it to quit — politely, so anything with unsaved
-  work can still stop you.
+- **Optionally quit what you left behind.** With Auto-Quit on for a layout,
+  applying it asks the applications outside it to quit — politely, so anything
+  with unsaved work can still stop you.
 - **Edit a layout in place** — drag tiles to reorder, drop an app from Finder to
   add it, remove one from the tile's context menu.
 - **Restore your original Dock.** The first time a layout is applied, Shitsurae

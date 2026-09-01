@@ -49,8 +49,7 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
         restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
-        quitter: FakeAppQuitter(),
-        defaults: defaults
+        quitter: FakeAppQuitter()
     )
     model.reload()
     let first = try #require(model.layouts.first).id
@@ -79,8 +78,7 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
         restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
-        quitter: FakeAppQuitter(),
-        defaults: defaults
+        quitter: FakeAppQuitter()
     )
     model.reload()
 
@@ -140,8 +138,7 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
         switcher: SwitchService(engine: engine, defaults: defaults),
         restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
-        quitter: FakeAppQuitter(),
-        defaults: defaults
+        quitter: FakeAppQuitter()
     )
     model.reload()
     let id = try #require(model.layouts.first).id
@@ -176,8 +173,7 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
         switcher: SwitchService(engine: engine, defaults: defaults),
         restorer: RestoreService(backup: backup, restarter: restarter, defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
-        quitter: FakeAppQuitter(),
-        defaults: defaults
+        quitter: FakeAppQuitter()
     )
     model.reload()
 
@@ -221,8 +217,7 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
             defaults: defaults
         ),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
-        quitter: FakeAppQuitter(),
-        defaults: defaults
+        quitter: FakeAppQuitter()
     )
     model.reload()
     let id = try #require(model.layouts.first).id

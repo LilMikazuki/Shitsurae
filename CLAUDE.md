@@ -95,6 +95,10 @@ by `DockFailureContractTests`:
   which it is, because nothing reached `DockEngine`.
 - **The Dock is never written without a backup that can restore it.** The backup
   is created once, on the first apply, and never overwritten.
+- **Auto-Quit is a field of the layout, not Dock content.** `setQuitsOtherApps`
+  saves the layout without going through `mutate`, so toggling it leaves the
+  active mark alone: the Dock still holds that layout. Pinned by
+  `turningAutoQuitOnKeepsTheActiveLayoutActive`.
 - **State kept outside the model is invisible to SwiftUI.** `activeLayoutID` and
   `canRestore` live in `UserDefaults` and on disk; `AppModel` mirrors them into
   stored properties and refreshes them in `syncServices()`. Turning either back
