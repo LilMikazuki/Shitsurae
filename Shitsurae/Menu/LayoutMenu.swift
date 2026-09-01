@@ -11,16 +11,8 @@ struct LayoutMenu: View {
                 .disabled(true)
         } else {
             ForEach(model.layouts) { layout in
-                Button {
-                    Task {
-                        await model.apply(id: layout.id)
-                    }
-                } label: {
-                    if let hotkey = model.shortcuts.label(for: layout.id) {
-                        menuLabel(layout, trailing: hotkey)
-                    } else {
-                        menuLabel(layout, trailing: nil)
-                    }
+                Toggle(isOn: applied(layout)) {
+                    Text(title(layout))
                 }
             }
         }
@@ -49,15 +41,20 @@ struct LayoutMenu: View {
         .keyboardShortcut("q", modifiers: .command)
     }
 
-    @ViewBuilder
-    private func menuLabel(_ layout: DockLayout, trailing: String?) -> some View {
-        let name = trailing.map { "\(layout.name)   \($0)" } ?? layout.name
-        Label {
-            Text(name)
-        } icon: {
-            Image(systemName: "checkmark")
-                .opacity(layout.id == model.activeLayoutID ? 1 : 0)
-        }
+    private func applied(_ layout: DockLayout) -> Binding<Bool> {
+        Binding(
+            get: { layout.id == model.activeLayoutID },
+            set: { _ in
+                Task {
+                    await model.apply(id: layout.id)
+                }
+            }
+        )
+    }
+
+    private func title(_ layout: DockLayout) -> String {
+        guard let hotkey = model.shortcuts.label(for: layout.id) else { return layout.name }
+        return "\(layout.name)   \(hotkey)"
     }
 
     private func activateAndOpen(_ id: String) {
