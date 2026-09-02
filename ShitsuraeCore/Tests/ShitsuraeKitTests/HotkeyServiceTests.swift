@@ -6,6 +6,7 @@ import Testing
 @MainActor
 private final class RecordingBinding: ShortcutBinding {
     private(set) var bound: [String: Int] = [:]
+    private(set) var unbound: [String: Int] = [:]
     private(set) var actions: [String: () -> Void] = [:]
     private(set) var enabled: [String: Bool] = [:]
 
@@ -15,6 +16,7 @@ private final class RecordingBinding: ShortcutBinding {
     }
 
     func unbind(_ name: KeyboardShortcuts.Name) {
+        unbound[name.rawValue, default: 0] += 1
         bound[name.rawValue] = 0
         actions[name.rawValue] = nil
     }
@@ -79,4 +81,33 @@ private final class RecordingBinding: ShortcutBinding {
         binding.enabled["layout-\(id.uuidString)"] == false,
         "a reload mid-recording must not re-arm the shortcut being recorded over"
     )
+}
+
+@Test @MainActor func registeringAnUnchangedListTouchesNoBinding() {
+    let binding = RecordingBinding()
+    let service = HotkeyService(binding: binding)
+    let a = UUID()
+    let b = UUID()
+
+    service.register([a, b])
+    service.register([a, b])
+    service.register([a, b])
+
+    #expect(binding.bound["layout-\(a.uuidString)"] == 1)
+    #expect(binding.bound["layout-\(b.uuidString)"] == 1)
+    #expect(binding.unbound.isEmpty)
+}
+
+@Test @MainActor func aLayoutJoiningTheListWhileRecordingStaysDisabled() {
+    let binding = RecordingBinding()
+    let service = HotkeyService(binding: binding)
+    let a = UUID()
+    let b = UUID()
+
+    service.register([a])
+    service.setEnabled(false)
+    service.register([a, b])
+
+    #expect(binding.enabled["layout-\(b.uuidString)"] == false)
+    #expect(binding.unbound["layout-\(a.uuidString)"] == nil)
 }

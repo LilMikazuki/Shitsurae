@@ -95,22 +95,22 @@ public final class HotkeyService: Hotkeys {
     }
 
     public func register(_ ids: [UUID]) {
-        for id in registered.subtracting(ids) {
+        let wanted = Set(ids)
+        for id in registered.subtracting(wanted) {
             binding.unbind(name(for: id))
         }
-        for id in ids {
-            // `onKeyUp` appends; without unbinding first, one press fires once
-            // per registration and applies the layout that many times.
-            binding.unbind(name(for: id))
+        for id in wanted.subtracting(registered) {
+            // `onKeyUp` appends, so binding an id that is already bound makes one
+            // press apply its layout twice.
             binding.bind(name(for: id)) { [weak self] in
                 self?.handler?(id)
             }
+            if !armed {
+                // Binding registers the shortcut with the system, which would
+                // re-arm it under an open recording.
+                binding.setEnabled(false, for: [name(for: id)])
+            }
         }
-        registered = Set(ids)
-        // Binding a shortcut re-registers it with the system, which would undo
-        // the disable that recording relies on.
-        if !armed {
-            binding.setEnabled(false, for: registered.map(name(for:)))
-        }
+        registered = wanted
     }
 }
