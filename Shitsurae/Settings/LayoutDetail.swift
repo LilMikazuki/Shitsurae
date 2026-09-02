@@ -2,7 +2,7 @@ import ShitsuraeKit
 import SwiftUI
 
 struct LayoutDetail: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let layout: DockLayout
     let icons: AppIconLoader
 

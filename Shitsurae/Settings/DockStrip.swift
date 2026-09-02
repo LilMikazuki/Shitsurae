@@ -5,7 +5,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct DockStrip: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let layout: DockLayout
     let icons: AppIconLoader
 

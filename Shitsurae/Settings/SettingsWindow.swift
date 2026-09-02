@@ -13,7 +13,7 @@ final class SettingsPage {
 }
 
 struct SettingsWindow: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
 
     @State private var icons = AppIconLoader()
@@ -65,7 +65,7 @@ private struct SplitLayout: NSViewControllerRepresentable {
 }
 
 private struct SidebarPane: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let page: SettingsPage
 
     var body: some View {
@@ -75,7 +75,7 @@ private struct SidebarPane: View {
 }
 
 private struct DetailPane: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
     let icons: AppIconLoader
     let page: SettingsPage

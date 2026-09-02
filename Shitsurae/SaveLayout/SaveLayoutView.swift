@@ -2,7 +2,7 @@ import ShitsuraeKit
 import SwiftUI
 
 struct SaveLayoutView: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""

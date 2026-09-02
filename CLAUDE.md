@@ -68,6 +68,15 @@ review lived there. Two rules, both mechanically enforced by
   package; what remains in the views is layout and wiring. `TileDrag` and
   `LayoutNote` exist because the arithmetic and the wording belong where they
   can fail a test.
+- **`ShitsuraeCore` imports AppKit, for `NSRunningApplication` in `DockRestarter`.** It is the
+  only one-call API that asks the Dock to quit politely; Foundation's route to the same quit
+  event is a hand-built `NSAppleEventDescriptor`. The package is macOS-only, and the link costs
+  the CLI about 1.5 ms at launch. Injecting the process source would move three lines into Kit
+  and the CLI, and the CLI would still link AppKit to supply them.
+- **`DockEngine.applyIfNeeded` reads the domain twice.** The second read is `preview`'s own
+  readability check, pinned by `previewFailsOnAnUnreadableDomain`; seeding the sandbox from raw
+  values without it would turn a wrong-typed key into a clean preview. A warm read of the seven
+  keys costs 0.005 ms. A second `preview` entry point on the Dock path is not worth that.
 
 ## Invariants worth knowing
 

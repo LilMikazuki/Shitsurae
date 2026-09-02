@@ -19,6 +19,7 @@ public final class AppIconLoader {
 
     public func invalidate() {
         presence.removeAll()
+        cache.removeAll()
     }
 
     public func icon(forAppAt path: String) -> NSImage? {

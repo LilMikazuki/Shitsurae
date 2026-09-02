@@ -22,3 +22,13 @@ import Testing
     let second = loader.icon(forAppAt: finder)
     #expect(first === second)
 }
+
+@Test @MainActor func anIconIsFetchedAgainAfterInvalidation() {
+    let loader = AppIconLoader()
+    let finder = "/System/Library/CoreServices/Finder.app"
+    let first = loader.icon(forAppAt: finder)
+    loader.invalidate()
+    let second = loader.icon(forAppAt: finder)
+    #expect(first != nil)
+    #expect(first !== second)
+}

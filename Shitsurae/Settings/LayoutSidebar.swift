@@ -2,7 +2,7 @@ import ShitsuraeKit
 import SwiftUI
 
 struct LayoutSidebar: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     let page: SettingsPage
     @Environment(\.openWindow) private var openWindow
 

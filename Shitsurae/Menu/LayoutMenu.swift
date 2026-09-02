@@ -2,7 +2,7 @@ import ShitsuraeKit
 import SwiftUI
 
 struct LayoutMenu: View {
-    @Bindable var model: AppModel
+    let model: AppModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
