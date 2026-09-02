@@ -26,7 +26,7 @@ struct LayoutMenu: View {
         Divider()
 
         Button("Settings…") {
-            WindowOpener.shared.show("settings")
+            activateAndOpen("settings")
         }
         .keyboardShortcut(",", modifiers: .command)
 

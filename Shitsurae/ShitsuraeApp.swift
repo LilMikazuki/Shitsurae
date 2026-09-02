@@ -2,13 +2,16 @@ import ShitsuraeCore
 import ShitsuraeKit
 import SwiftUI
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    let windows = WindowOpener()
+
     func applicationShouldHandleReopen(
         _: NSApplication,
         hasVisibleWindows visible: Bool
     ) -> Bool {
         guard !visible else { return true }
-        WindowOpener.shared.show("settings")
+        windows.show("settings")
         return true
     }
 
@@ -41,7 +44,7 @@ struct ShitsuraeApp: App {
         MenuBarExtra {
             LayoutMenu(model: model)
         } label: {
-            MenuBarIcon(model: model)
+            MenuBarIcon(model: model, windows: delegate.windows)
         }
         .menuBarExtraStyle(.menu)
 
