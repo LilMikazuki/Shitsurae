@@ -23,11 +23,6 @@ struct LayoutMenu: View {
             activateAndOpen("save-layout")
         }
 
-        Button("Restore Original Dock") {
-            model.askRestore()
-        }
-        .disabled(!model.canRestore || model.isChangingDock)
-
         Divider()
 
         Button("Settings…") {

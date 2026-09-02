@@ -20,14 +20,9 @@ private func makeModelWithLayout(_ paths: [String]) throws -> (AppModel, DockLay
     try store.save(layout)
 
     let defaults = temporaryDefaults()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: randomDomain()
-    )
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults)
+        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults)
     )
     model.reload()
     model.selectedLayoutID = layout.id

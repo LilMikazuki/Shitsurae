@@ -50,17 +50,6 @@ case let .dump(json):
         fail("Failed to read the Dock: \(error)")
     }
 
-case .backup:
-    do {
-        let backup = DockBackup(directory: DockBackup.defaultDirectory)
-        let created = try backup.createIfNeeded()
-        print(created
-            ? "Backup written to \(backup.backupURL.path)"
-            : "Backup already exists at \(backup.backupURL.path)")
-    } catch {
-        fail("Failed to back up the Dock domain: \(error)")
-    }
-
 case let .apply(file, dryRun):
     do {
         let data = try Data(contentsOf: URL(fileURLWithPath: file))
@@ -79,21 +68,6 @@ case let .apply(file, dryRun):
         """)
     } catch {
         fail("Failed to apply: \(error)")
-    }
-
-case .restore:
-    do {
-        let backup = DockBackup(directory: DockBackup.defaultDirectory)
-        try backup.restore()
-        try DockRestarter().restart()
-        print("Dock restored from \(backup.backupURL.path)")
-    } catch let error as DockRestartError {
-        fail("""
-        The Dock domain was restored, but the Dock did not restart: \(error)
-        Run `killall Dock` to finish applying it.
-        """)
-    } catch {
-        fail("Failed to restore: \(error)")
     }
 
 case .help:

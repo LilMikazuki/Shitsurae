@@ -5,7 +5,6 @@ import Testing
 @Test func parsesSimpleCommands() throws {
     #expect(try ShitsuraeCommand.parse(["dump"]) == .dump(json: false))
     #expect(try ShitsuraeCommand.parse(["dump", "--json"]) == .dump(json: true))
-    #expect(try ShitsuraeCommand.parse(["backup"]) == .backup)
     #expect(try ShitsuraeCommand.parse(["--help"]) == .help)
     #expect(try ShitsuraeCommand.parse(["-h"]) == .help)
 }
@@ -37,7 +36,6 @@ import Testing
 
 @Test func anExtraArgumentIsRejected() {
     #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["dump", "--json", "x"]) }
-    #expect(throws: CommandParseError.self) { try ShitsuraeCommand.parse(["backup", "x"]) }
     #expect(throws: CommandParseError.self) {
         try ShitsuraeCommand.parse(["apply", "s.json", "--dry-run", "x"])
     }
@@ -76,20 +74,17 @@ import Testing
     #expect(throws: CommandParseError.missingFile) { try ShitsuraeCommand.parse(["apply", "-h"]) }
 }
 
-@Test func parsesRestore() throws {
-    #expect(try ShitsuraeCommand.parse(["restore"]) == .restore)
-}
-
 @Test func theUsageTextNamesEveryCommand() {
-    for name in ["dump", "backup", "apply", "restore", "--help"] {
+    for name in ["dump", "apply", "--help"] {
         #expect(ShitsuraeCommand.usage.contains(name))
     }
 }
 
-@Test func trailingGarbageAfterRestoreIsRejected() {
-    for junk in ["--dryrun", "--dry-run", "x"] {
-        #expect(throws: CommandParseError.self) {
-            try ShitsuraeCommand.parse(["restore", junk])
-        }
+@Test func theRemovedCommandsAreNotAccepted() {
+    #expect(throws: CommandParseError.unknownCommand("backup")) {
+        try ShitsuraeCommand.parse(["backup"])
+    }
+    #expect(throws: CommandParseError.unknownCommand("restore")) {
+        try ShitsuraeCommand.parse(["restore"])
     }
 }

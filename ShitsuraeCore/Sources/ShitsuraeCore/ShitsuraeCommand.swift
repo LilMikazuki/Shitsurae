@@ -25,9 +25,7 @@ extension CommandParseError: CustomStringConvertible {
 
 public enum ShitsuraeCommand: Equatable, Sendable {
     case dump(json: Bool)
-    case backup
     case apply(file: String, dryRun: Bool)
-    case restore
     case help
 
     public static let usage = """
@@ -36,11 +34,8 @@ public enum ShitsuraeCommand: Equatable, Sendable {
     Commands:
       dump [--json]            Print the current Dock layout and settings;
                                --json prints a DockState JSON document instead
-      backup                   Create the one-time backup of the Dock domain
       apply <file> [--dry-run] Apply a DockState JSON file; --dry-run prints the
                                result without touching the real Dock
-      restore                  Restore the Dock domain from the backup and
-                               restart the Dock. Fails if no backup exists.
       --help, -h               Print this message
     """
 
@@ -59,14 +54,6 @@ public enum ShitsuraeCommand: Equatable, Sendable {
                 )
             }
 
-        case "backup":
-            guard rest.isEmpty else {
-                throw CommandParseError.unrecognizedArguments(
-                    command: "backup", arguments: rest, usage: "backup"
-                )
-            }
-            return .backup
-
         case "apply":
             guard let file = rest.first, !file.hasPrefix("-") else {
                 throw CommandParseError.missingFile
@@ -79,14 +66,6 @@ public enum ShitsuraeCommand: Equatable, Sendable {
                     command: "apply", arguments: extra, usage: "apply <file> [--dry-run]"
                 )
             }
-
-        case "restore":
-            guard rest.isEmpty else {
-                throw CommandParseError.unrecognizedArguments(
-                    command: "restore", arguments: rest, usage: "restore"
-                )
-            }
-            return .restore
 
         case "--help", "-h":
             guard rest.isEmpty else {

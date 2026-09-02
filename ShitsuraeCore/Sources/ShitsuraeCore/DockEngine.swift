@@ -2,21 +2,15 @@ import Foundation
 
 public struct DockEngine: Sendable {
     private let store: DockPreferenceStore
-    private let backup: DockBackup
     private let restarter: DockRestarting
 
-    init(store: DockPreferenceStore, backup: DockBackup, restarter: DockRestarting) {
+    init(store: DockPreferenceStore, restarter: DockRestarting) {
         self.store = store
-        self.backup = backup
         self.restarter = restarter
     }
 
     public static func live() -> DockEngine {
-        DockEngine(
-            store: CFPreferencesDockStore(),
-            backup: DockBackup(directory: DockBackup.defaultDirectory),
-            restarter: DockRestarter()
-        )
+        DockEngine(store: CFPreferencesDockStore(), restarter: DockRestarter())
     }
 
     public func read() throws -> DockState {
@@ -39,7 +33,6 @@ public struct DockEngine: Sendable {
 
     public func apply(_ state: DockState) throws {
         _ = try read()
-        try backup.createIfNeeded()
         try DockWriter(store: store).write(state)
         try restarter.restart()
     }
@@ -47,7 +40,6 @@ public struct DockEngine: Sendable {
     @discardableResult
     public func applyIfNeeded(_ state: DockState) throws -> Bool {
         let current = try read()
-        try backup.createIfNeeded()
         guard try preview(state) != current else { return false }
         try DockWriter(store: store).write(state)
         try restarter.restart()

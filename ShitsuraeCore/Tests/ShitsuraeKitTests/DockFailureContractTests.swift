@@ -13,10 +13,6 @@ private func throwSite(_ error: DockReadError, _ where_: String) -> ThrowSite {
     ThrowSite(error: error, state: error.domainState, site: where_)
 }
 
-private func throwSite(_ error: DockBackupError, _ where_: String) -> ThrowSite {
-    ThrowSite(error: error, state: error.domainState, site: where_)
-}
-
 private func throwSite(_ error: DockWriteError, _ where_: String) -> ThrowSite {
     ThrowSite(error: error, state: error.domainState, site: where_)
 }
@@ -49,57 +45,6 @@ private enum ReadFailure: FailureFamily {
             throwSite(DockReadError.unsupportedValue(key: "orientation", value: "diagonal"), where_)
         case .unsupportedTileType:
             throwSite(DockReadError.unsupportedTileType(index: 0, tileType: "spacer-tile"), where_)
-        }
-    }
-}
-
-private enum BackupFailure: FailureFamily {
-    case backupDirectoryUnavailable, exportCouldNotStart, exportFailed,
-         exportProducedInvalidFile, backupMissing, importCouldNotStart,
-         importFailed, importDidNotApply
-
-    var site: ThrowSite {
-        switch self {
-        case .backupDirectoryUnavailable:
-            throwSite(
-                DockBackupError.backupDirectoryUnavailable,
-                "DockBackup.createIfNeeded, before the export"
-            )
-        case .exportCouldNotStart:
-            throwSite(
-                DockBackupError.exportCouldNotStart,
-                "DockBackup.createIfNeeded, export only reads"
-            )
-        case .exportFailed:
-            throwSite(
-                DockBackupError.exportFailed(status: 1),
-                "DockBackup.createIfNeeded, export only reads"
-            )
-        case .exportProducedInvalidFile:
-            throwSite(
-                DockBackupError.exportProducedInvalidFile,
-                "DockBackup.createIfNeeded, export only reads"
-            )
-        case .backupMissing:
-            throwSite(
-                DockBackupError.backupMissing,
-                "DockBackup.restore, before it clears anything"
-            )
-        case .importCouldNotStart:
-            throwSite(
-                DockBackupError.importCouldNotStart,
-                "DockBackup.restore, after clearing the keys the backup lacks"
-            )
-        case .importFailed:
-            throwSite(
-                DockBackupError.importFailed(status: 1),
-                "DockBackup.restore, after `defaults import` ran"
-            )
-        case .importDidNotApply:
-            throwSite(
-                DockBackupError.importDidNotApply,
-                "DockBackup.restore, after `defaults import` ran"
-            )
         }
     }
 }
@@ -141,19 +86,6 @@ private func family(of error: DockReadError) -> ReadFailure {
     }
 }
 
-private func family(of error: DockBackupError) -> BackupFailure {
-    switch error {
-    case .backupDirectoryUnavailable: .backupDirectoryUnavailable
-    case .exportCouldNotStart: .exportCouldNotStart
-    case .exportFailed: .exportFailed
-    case .exportProducedInvalidFile: .exportProducedInvalidFile
-    case .backupMissing: .backupMissing
-    case .importCouldNotStart: .importCouldNotStart
-    case .importFailed: .importFailed
-    case .importDidNotApply: .importDidNotApply
-    }
-}
-
 private func family(of error: DockWriteError) -> WriteFailure {
     switch error {
     case .synchronizeFailed: .synchronizeFailed
@@ -168,7 +100,6 @@ private func family(of error: DockRestartError) -> RestartFailure {
 
 private let throwSites: [ThrowSite] =
     ReadFailure.allCases.map(\.site)
-        + BackupFailure.allCases.map(\.site)
         + WriteFailure.allCases.map(\.site)
         + RestartFailure.allCases.map(\.site)
 
@@ -181,7 +112,7 @@ private func deniesAnyChange(_ text: String) -> Bool {
 }
 
 @Test func theTableCoversEveryFailureOnTheDockPath() {
-    #expect(throwSites.count == 14)
+    #expect(throwSites.count == 6)
 }
 
 @Test func noFailureDeniesAChangeItAlreadyMade() {
@@ -205,7 +136,7 @@ private func deniesAnyChange(_ text: String) -> Bool {
 @Test func killallIsOnlyAdvisedWhenARunningDockRefusedToQuit() {
     for site in throwSites where shown(ShitsuraeFailure(from: site.error)).contains("killall") {
         #expect(
-            ShitsuraeFailure(from: site.error) == .writtenButNotApplied(.restartRefused),
+            ShitsuraeFailure(from: site.error) == .writtenButNotApplied,
             "\(site.site): restarting only finishes the job when a running Dock refused to quit"
         )
     }
@@ -214,9 +145,6 @@ private func deniesAnyChange(_ text: String) -> Bool {
 @Test func everySampleBelongsToTheCaseThatSuppliedIt() throws {
     for kind in ReadFailure.allCases {
         #expect(try family(of: #require(kind.site.error as? DockReadError)) == kind)
-    }
-    for kind in BackupFailure.allCases {
-        #expect(try family(of: #require(kind.site.error as? DockBackupError)) == kind)
     }
     for kind in WriteFailure.allCases {
         #expect(try family(of: #require(kind.site.error as? DockWriteError)) == kind)

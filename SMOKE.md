@@ -7,12 +7,10 @@ real macOS 26 machine after any change to `DockEngine`, `DockWriter` or
 Run every `swift run` command below from the `ShitsuraeCore` directory, where the
 package lives.
 
-Before you start: `swift run shitsurae-cli backup`, and check that
-`~/Library/Application Support/Shitsurae/backup/com.apple.dock.original.plist`
-exists. Everything below is recoverable: `swift run shitsurae-cli restore` puts
-the Dock back the way it was. If the tool itself is too broken to run, the same
-thing by hand: `defaults import com.apple.dock <that file>` followed by
-`killall Dock`.
+Before you start: `swift run shitsurae-cli dump --json > original.json`.
+Everything below is recoverable — `swift run shitsurae-cli apply original.json`
+puts the Dock back the way it was — and the app itself keeps a way back, because
+the first launch saves your untouched Dock as the layout `Dock 1`.
 
 ## Core, through the CLI
 
@@ -30,33 +28,10 @@ thing by hand: `defaults import com.apple.dock <that file>` followed by
 5. **Settings** — change `tilesize` in the JSON, apply, and confirm the icons
    change size. Confirm keys that were absent from your domain are still absent
    afterwards: `defaults read com.apple.dock orientation` should still error.
-6. **The backup is never overwritten** — note the file's modification date with
-   `stat -f "%Sm" ~/Library/Application\ Support/Shitsurae/backup/com.apple.dock.original.plist`,
-   run `backup` again, confirm it reports `already exists`, and re-run `stat` to
-   confirm the date is unchanged.
-7. **Restore brings it all back** — `swift run shitsurae-cli restore`, then
-   `swift run shitsurae-cli dump --json > restored.json` and
-   `diff original.json restored.json`. The Dock blinks once and the diff is
-   empty: you are back where step 1 started.
-8. **The backup survives restoring** — `ls` the backup file afterwards. It is
-   still there, and `restore` can be run a second time without complaint. Losing
-   the safety net on first use would defeat its whole purpose.
-9. **Restore rejects stray arguments** — `restore --dryrun` fails with
-   "Unrecognized argument(s)" and does **not** restore. This matters more here
-   than anywhere else: `restore` overwrites the entire layout, so a silently
-   swallowed argument would be the most expensive one in the tool.
-10. **Restore refuses when there is nothing to restore from** — this one needs the
-    backup out of the way, so do it last and put the file back afterwards:
-
-    ```bash
-    B=~/Library/Application\ Support/Shitsurae/backup/com.apple.dock.original.plist
-    mv "$B" "$B.aside"
-    swift run shitsurae-cli restore   # fails: "There is no usable backup to restore from."
-    mv "$B.aside" "$B"
-    ```
-
-    Confirm the exit code is non-zero, the Dock did not move, and the file is back
-    where it belongs before you walk away.
+6. **Apply rejects stray arguments** — `apply state.json --dryrun` fails with
+   "Unrecognized argument(s)" and does **not** apply. `apply` rewrites the whole
+   Dock, so a silently swallowed argument would be the most expensive one in the
+   tool.
 
 ## The menu bar
 
@@ -65,8 +40,6 @@ thing by hand: `defaults import com.apple.dock <that file>` followed by
 - [ ] `Quit Shitsurae` quits the app.
 - [ ] `Settings…` and ⌘, open the settings window in front of other windows.
 - [ ] With no layouts, the menu shows a hint that cannot be clicked.
-- [ ] `Restore Original Dock` is disabled until a backup exists, and becomes
-      enabled after the first apply without reopening the menu.
 - [ ] Clicking a layout restarts the Dock and moves the checkmark to it.
 - [ ] Every row's title starts at the same left edge, checked or not.
 - [ ] The menu width does not jump when the active layout changes.
@@ -127,6 +100,9 @@ one on screen. Turn it off again when you are done testing.
 - [ ] Renaming to an existing name keeps the field open and says why; Esc cancels.
 - [ ] A long name truncates with an ellipsis and the row does not grow.
 - [ ] Deleting the active layout clears the `ACTIVE` badge.
+- [ ] On a machine with no layouts, launch the app and confirm `Dock 1` appears
+      and is marked active. Apply a different layout, then apply `Dock 1`: the
+      Dock returns to what it was, including settings that were absent before.
 
 ## The layout screen
 
@@ -174,15 +150,15 @@ one on screen. Turn it off again when you are done testing.
 
 ## Alerts
 
-- [ ] Restore asks for confirmation and brings back the original Dock.
-- [ ] After restoring, no layout carries the `ACTIVE` badge and `Restore Original
-      Dock` goes back to disabled.
 - [ ] Delete asks for confirmation, the button is red and fires on Return.
 - [ ] Esc cancels a deletion.
 - [ ] A Dock with a separator produces the separator alert, not the "format
       changed" one. Set it up with `defaults write com.apple.dock persistent-apps
       -array-add '{"tile-type"="small-spacer-tile";}'` then `killall Dock`, and
-      try to save a layout. Clear it with Restore or by hand.
+      try to save a layout. Applying a layout does not clear it either — every
+      apply starts by reading the Dock — so remove it with
+      `defaults delete com.apple.dock persistent-apps` followed by `killall Dock`,
+      which leaves an empty Dock, and then apply a saved layout.
 A failed Dock restart is no longer reachable by hand: the only surviving trigger
 is a running Dock that refuses to quit, which cannot be arranged from Terminal.
 An absent Dock is not a failure — launchd starts one and it reads the domain
@@ -190,49 +166,12 @@ that was just written. Unit tests cover both.
 - [ ] `unreadableLayout` — `defaults write com.apple.dock tilesize -string "big"`,
       `killall Dock`, then try to save a layout. Expect "can't read your Dock
       layout". Undo: `defaults delete com.apple.dock tilesize 2>/dev/null`, then
-      `swift run shitsurae-cli restore`. Delete the key explicitly first —
-      `defaults import` merges into the domain rather than replacing it, so it
-      will not remove the stray key on its own.
+      `swift run shitsurae-cli apply original.json`.
 - [ ] `unsupportedSetting` — `defaults write com.apple.dock orientation -string
       "diagonal"` (right type, unknown value), then try to save a layout. Expect
       text naming both the key and the value: this is the only failure a user can
       fix themselves, so the substitution has to be visible. Undo the same way as
       above.
-- [ ] `backupFailed` — a valid backup already exists from the preamble, and
-      `createIfNeeded()` does not touch the filesystem while it is in place. Hide
-      the file, make the directory read-only, then **apply** a layout from the
-      menu; saving the current Dock does not touch the backup and will not show
-      this failure:
-
-      ```bash
-      DIR=~/Library/Application\ Support/Shitsurae/backup
-      B="$DIR/com.apple.dock.original.plist"
-      mv "$B" "$B.aside"
-      chmod u-w "$DIR"
-      ```
-
-      Expect text saying Shitsurae will not touch the Dock without a backup it
-      can restore; the `ACTIVE` badge does not move and the real Dock does not
-      change, because apply fails at the backup stage before any write. Put it
-      back:
-
-      ```bash
-      chmod u+w "$DIR"
-      mv "$B.aside" "$B"
-      ```
-
-`restoreFailed` now means one thing only: there is no usable backup. It cannot be
-reproduced through the UI, because `Restore Original Dock` is gated on
-`canRestore`, which is `DockBackup.exists` — the very check you would have to
-break to trigger it. Unit tests cover it instead.
-
-A restore that fails *after* `defaults import` has written the domain reports
-that the original Dock was only partly restored — not "nothing was changed",
-because by then the domain has been rewritten, and not "run `killall Dock`",
-which would only entrench the half-restored state. A failed Dock *restart* keeps
-that advice, because there it is the right thing to do. Both are the same
-reason, `writtenButNotApplied`, carrying different stages: the seven-reason
-invariant holds, and only that one reason may admit the Dock changed.
 
 `writeFailed` cannot be reproduced by hand either: there is no reliable way to
 make the preferences daemon reject a write. Covered by the failure-mapping unit

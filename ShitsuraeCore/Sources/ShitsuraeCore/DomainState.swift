@@ -15,18 +15,6 @@ public extension DockReadError {
     }
 }
 
-public extension DockBackupError {
-    var domainState: DomainState {
-        switch self {
-        case .backupDirectoryUnavailable, .exportCouldNotStart, .exportFailed,
-             .exportProducedInvalidFile, .backupMissing:
-            .untouched
-        case .importCouldNotStart, .importFailed, .importDidNotApply:
-            .changed
-        }
-    }
-}
-
 public extension DockWriteError {
     var domainState: DomainState {
         switch self {

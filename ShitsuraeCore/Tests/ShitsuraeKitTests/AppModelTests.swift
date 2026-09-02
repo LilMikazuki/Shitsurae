@@ -16,14 +16,9 @@ private func makeModel(
     try store.saveAll(layouts)
 
     let defaults = temporaryDefaults()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: randomDomain()
-    )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: hotkeys)
     )
     model.reload()
@@ -129,7 +124,7 @@ private func removeDomain(_ domain: String) {
 
     await model.apply(id: id)
 
-    #expect(model.alert == .failure(.writtenButNotApplied(.restartRefused)))
+    #expect(model.alert == .failure(.writtenButNotApplied))
 }
 
 @Test @MainActor func aRestartFailureDoesNotSetTheActiveMark() async throws {
@@ -158,7 +153,7 @@ private func removeDomain(_ domain: String) {
     engine.applyError = DockRestartError.terminateRefused
     await model.apply(id: focus.id)
 
-    #expect(model.alert == .failure(.writtenButNotApplied(.restartRefused)))
+    #expect(model.alert == .failure(.writtenButNotApplied))
     #expect(model.activeLayoutID == work.id)
 }
 
@@ -179,16 +174,8 @@ private func removeDomain(_ domain: String) {
             DockReadError.unsupportedTileType(index: 3, tileType: "spacer-tile"),
             .unsupportedTile("spacer-tile")
         ),
-        (DockBackupError.backupDirectoryUnavailable, .backupFailed),
-        (DockBackupError.exportCouldNotStart, .backupFailed),
-        (DockBackupError.exportFailed(status: 1), .backupFailed),
-        (DockBackupError.exportProducedInvalidFile, .backupFailed),
-        (DockBackupError.backupMissing, .restoreFailed),
-        (DockBackupError.importCouldNotStart, .writtenButNotApplied(.writeIncomplete)),
-        (DockBackupError.importFailed(status: 1), .writtenButNotApplied(.writeIncomplete)),
-        (DockBackupError.importDidNotApply, .writtenButNotApplied(.writeIncomplete)),
         (DockWriteError.synchronizeFailed, .writeFailed),
-        (DockRestartError.terminateRefused, .writtenButNotApplied(.restartRefused))
+        (DockRestartError.terminateRefused, .writtenButNotApplied)
     ]
 
     for (error, expected) in pairs {
@@ -204,8 +191,8 @@ private func removeDomain(_ domain: String) {
     }
 
     #expect(
-        produced.count == 8,
-        "eight distinct reasons; collapsing any two would hide a difference from the user"
+        produced.count == 5,
+        "five distinct reasons; collapsing any two would hide a difference from the user"
     )
 }
 
@@ -256,11 +243,6 @@ private func removeDomain(_ domain: String) {
     #expect(model.layouts.first?.name == "Work")
 }
 
-@Test @MainActor func restoreIsUnavailableWithoutABackup() throws {
-    let (model, _, _) = try makeModel()
-    #expect(model.canRestore == false)
-}
-
 @Test @MainActor func deleteAlertNamesTheSelectedLayout() throws {
     let (model, _, _) = try makeModel(layouts: [testLayout("Work", order: 0)])
     let id = try #require(model.layouts.first?.id)
@@ -294,85 +276,6 @@ private func removeDomain(_ domain: String) {
     model.askDelete()
 
     #expect(model.alert == nil)
-}
-
-@Test @MainActor func cancellingTheRestoreAlertChangesNothing() throws {
-    let (model, _, _) = try makeModel(layouts: [testLayout("Work", order: 0)])
-
-    model.askRestore()
-    #expect(model.alert == .restore)
-
-    model.dismissAlert()
-
-    #expect(model.alert == nil)
-}
-
-@Test @MainActor func confirmingRestoreClearsTheActiveMarkOnSuccess() async throws {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-model-restore-\(UUID().uuidString)")
-    defer { try? FileManager.default.removeItem(at: dir) }
-    let domain = randomDomain()
-    defer { removeDomain(domain) }
-    try writeToDomain(domain, key: "marker", value: "original")
-
-    let store = LayoutStore(directory: dir)
-    try store.saveAll([testLayout("Work", order: 0)])
-    let defaults = temporaryDefaults()
-    let engine = FakeDockEngine()
-    let backup = DockBackup(directory: dir.appendingPathComponent("backup"), domain: domain)
-    try backup.createIfNeeded()
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults)
-    )
-    model.reload()
-    let layout = try #require(model.layouts.first)
-
-    await model.apply(id: layout.id)
-    #expect(model.activeLayoutID == layout.id)
-
-    model.askRestore()
-    #expect(model.alert == .restore)
-
-    await model.confirmAlert()
-
-    #expect(model.alert == nil)
-    #expect(model.activeLayoutID == nil)
-}
-
-@Test @MainActor func aRestartFailureDuringRestoreYieldsWrittenButNotApplied() async throws {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-model-restore-\(UUID().uuidString)")
-    defer { try? FileManager.default.removeItem(at: dir) }
-    let domain = randomDomain()
-    defer { removeDomain(domain) }
-    try writeToDomain(domain, key: "marker", value: "original")
-
-    let store = LayoutStore(directory: dir)
-    try store.saveAll([testLayout("Work", order: 0)])
-    let defaults = temporaryDefaults()
-    let engine = FakeDockEngine()
-    let backup = DockBackup(directory: dir.appendingPathComponent("backup"), domain: domain)
-    try backup.createIfNeeded()
-    let restarter = FakeRestarter()
-    restarter.error = DockRestartError.terminateRefused
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: restarter, defaults: defaults)
-    )
-    model.reload()
-    let layout = try #require(model.layouts.first)
-
-    await model.apply(id: layout.id)
-    #expect(model.activeLayoutID == layout.id)
-
-    model.askRestore()
-    await model.confirmAlert()
-
-    #expect(model.alert == .failure(.writtenButNotApplied(.restartRefused)))
-    #expect(model.activeLayoutID == layout.id)
 }
 
 private final class Flag: @unchecked Sendable {
@@ -437,14 +340,9 @@ private final class Flag: @unchecked Sendable {
     try store.saveAll([testLayout("Work", order: 0)])
 
     let defaults = temporaryDefaults()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: randomDomain()
-    )
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults)
+        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults)
     )
     model.reload()
     #expect(model.layouts.count == 1)
@@ -470,40 +368,6 @@ private final class Flag: @unchecked Sendable {
 
     #expect(added == 1)
     #expect(model.layouts.first?.apps.count == before + 1)
-}
-
-@Test @MainActor func aBackupAppearingNotifiesObservers() throws {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-canrestore-\(UUID().uuidString)")
-    defer { try? FileManager.default.removeItem(at: dir) }
-    let domain = randomDomain()
-    defer { removeDomain(domain) }
-    try writeToDomain(domain, key: "marker", value: "original")
-
-    let store = LayoutStore(directory: dir)
-    try store.saveAll([testLayout("Work", order: 0)])
-    let defaults = temporaryDefaults()
-    let backup = DockBackup(directory: dir.appendingPathComponent("backup"), domain: domain)
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults)
-    )
-    model.reload()
-    #expect(model.canRestore == false)
-
-    let flag = Flag()
-    withObservationTracking {
-        _ = model.canRestore
-    } onChange: {
-        flag.raise()
-    }
-
-    try backup.createIfNeeded()
-    model.reload()
-
-    #expect(model.canRestore, "a backup exists but restore is unavailable")
-    #expect(flag.isRaised, "a backup appearing did not notify observers")
 }
 
 @Test @MainActor func deletingALayoutEndsARecordingForIt() throws {
@@ -606,14 +470,6 @@ private final class Flag: @unchecked Sendable {
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(
-            backup: DockBackup(
-                directory: dir.appendingPathComponent("backup"),
-                domain: randomDomain()
-            ),
-            restarter: FakeRestarter(),
-            defaults: defaults
-        ),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
     )
     model.reload()
@@ -637,14 +493,6 @@ private final class Flag: @unchecked Sendable {
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(
-            backup: DockBackup(
-                directory: dir.appendingPathComponent("backup"),
-                domain: randomDomain()
-            ),
-            restarter: FakeRestarter(),
-            defaults: defaults
-        ),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
     )
     model.reload()

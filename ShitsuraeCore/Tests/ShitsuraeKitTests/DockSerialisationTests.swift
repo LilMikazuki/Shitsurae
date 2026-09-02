@@ -41,14 +41,9 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     try store.saveAll([testLayout("Work", order: 0), testLayout("Personal", order: 1)])
     let defaults = temporaryDefaults()
     let engine = CountingEngine()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
-    )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         quitter: FakeAppQuitter()
     )
     model.reload()
@@ -70,14 +65,9 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     let defaults = temporaryDefaults()
     let engine = FakeDockEngine()
     engine.applyError = DockWriteError.synchronizeFailed
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
-    )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         quitter: FakeAppQuitter()
     )
     model.reload()
@@ -129,14 +119,9 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     try store.save(layout)
     let defaults = temporaryDefaults()
     let engine = GatedEngine()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
-    )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: FakeAppQuitter()
     )
@@ -156,43 +141,6 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     #expect(try store.load().layouts.first?.apps.isEmpty == true, "nor put it back on disk")
 }
 
-@Test @MainActor func aRestoreCannotStartWhileAnApplyIsInFlight() async throws {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-serial-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
-    try store.saveAll([testLayout("Work", order: 0)])
-    let defaults = temporaryDefaults()
-    let engine = GatedEngine()
-    let restarter = FakeRestarter()
-    let backup = DockBackup(
-        directory: dir.appendingPathComponent("backup"),
-        domain: dir.appendingPathComponent("domain.plist").path
-    )
-    let model = AppModel(
-        store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: restarter, defaults: defaults),
-        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
-        quitter: FakeAppQuitter()
-    )
-    model.reload()
-
-    let applying = Task { try await model.apply(id: #require(model.layouts.first).id) }
-    await engine.waitUntilEntered()
-
-    model.askRestore()
-    await model.confirmAlert()
-
-    #expect(
-        restarter.restartCount == 0,
-        "a restore must not run into an apply that is still writing"
-    )
-    #expect(model.alert == nil, "a dialog nobody can re-present must not stay armed")
-
-    engine.release.signal()
-    _ = await applying.result
-}
-
 @Test @MainActor func aLayoutEditedMidApplyStopsBeingTheActiveOne() async throws {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-stale-\(UUID().uuidString)")
@@ -208,14 +156,6 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(
-            backup: DockBackup(
-                directory: dir.appendingPathComponent("backup"),
-                domain: dir.appendingPathComponent("domain.plist").path
-            ),
-            restarter: FakeRestarter(),
-            defaults: defaults
-        ),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: FakeAppQuitter()
     )

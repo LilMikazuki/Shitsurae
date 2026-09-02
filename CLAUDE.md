@@ -25,8 +25,8 @@ import SwiftUI.
   restating the code goes stale at the next edit. Tests included.
 - The one exception is a reader who would otherwise delete or "simplify"
   something load-bearing and bring the bug back. Then say why it is
-  load-bearing, in two or three lines: the `defaults import` merge in
-  `DockBackup` and the `onKeyUp` append in `HotkeyService` are the shape of it.
+  load-bearing, in two or three lines: the `nil` clear in `DockWriter.set` and
+  the `onKeyUp` append in `HotkeyService` are the shape of it.
   Never a paragraph, and never a comment about what the code does.
 - Everything in the repository is in English: identifiers, comments, commit
   messages, CI step names.
@@ -41,9 +41,9 @@ import SwiftUI.
 
 ## Before changing anything on the Dock path
 
-`DockEngine.apply` and `DockBackup.restore` write the user's Dock, and every
-blocker found late in review lived there. Two rules, both mechanically enforced
-by `DockFailureContractTests`:
+`DockEngine.apply` writes the user's Dock, and every blocker found late in
+review lived there. Two rules, both mechanically enforced by
+`DockFailureContractTests`:
 
 - **Every error thrown after the domain is touched must map to a reason whose
   title and message admit it.** `DockFailureContractTests` builds its table from
@@ -56,10 +56,6 @@ by `DockFailureContractTests`:
   switch enforces neither, and fell two cases behind before this shape replaced it.
 - **Redirecting an error to an existing reason means reading that reason's
   text.** The two are one edit, never two.
-- **`DockBackup` uses typed throws.** An untyped error escaping that path would
-  fall through `ShitsuraeFailure.init(from:)` to `unreadableLayout` and tell the
-  user macOS changed its format when the truth was a read-only folder. Typed
-  throws makes that a compile error rather than something review has to notice.
 
 ## What is deliberately left alone
 
@@ -75,34 +71,27 @@ by `DockFailureContractTests`:
 
 ## Invariants worth knowing
 
-- **`ShitsuraeFailure` has seven cases, and exactly one of them —
+- **`ShitsuraeFailure` has five cases, and exactly one of them —
   `writtenButNotApplied` — means the Dock has already changed.** Every other
   message promises the user that nothing was touched, so every error thrown
-  after a write has to map to that one case: a failed `defaults import` during a
-  restore belongs there, not with `restoreFailed`. It carries a
-  `DockWriteStage`, because the two ways to get there need opposite advice —
-  a refused restart is finished with `killall Dock`, while a half-written
-  restore would only be entrenched by it. Pinned by
-  `onlyWrittenButNotAppliedAdmitsTheDockChanged`,
-  `everyReasonThrownAfterTheDomainIsWrittenAdmitsIt` and
-  `aFailedRestoreDoesNotTellTheUserToRestartTheDock`.
-- **`defaults import` merges; it does not replace.** A setting switched on after
-  the backup was taken survives the import, so `DockBackup.restore` clears every
-  key the backup lacks before importing. Pinned by
-  `restoreRemovesASettingTheBackupNeverHad`.
+  after a write has to map to that one case. Pinned by
+  `onlyWrittenButNotAppliedAdmitsTheDockChanged` and
+  `everyReasonThrownAfterTheDomainIsWrittenAdmitsIt`.
+- **The user's way back is `Dock 1`, not a backup.** The seed captures the
+  untouched Dock at first launch, and applying it restores every key the app can
+  write, because a layout stores all seven and `nil` clears rather than skips.
+  Pinned by `applyingASavedStateAgainPutsBackEverySettingTheAppCanChange`.
 - **A layout that cannot be written to disk is not a Dock failure.** It raises
   `ShitsuraeAlertKind.saveFailed`, whose text promises the Dock is untouched —
   which it is, because nothing reached `DockEngine`.
-- **The Dock is never written without a backup that can restore it.** The backup
-  is created once, on the first apply, and never overwritten.
 - **Auto-Quit is a field of the layout, not Dock content.** `setQuitsOtherApps`
   saves the layout without going through `mutate`, so toggling it leaves the
   active mark alone: the Dock still holds that layout. Pinned by
   `turningAutoQuitOnKeepsTheActiveLayoutActive`.
-- **State kept outside the model is invisible to SwiftUI.** `activeLayoutID` and
-  `canRestore` live in `UserDefaults` and on disk; `AppModel` mirrors them into
-  stored properties and refreshes them in `syncServices()`. Turning either back
-  into a computed property silently breaks every view that reads it.
+- **State kept outside the model is invisible to SwiftUI.** `activeLayoutID`
+  lives in `UserDefaults`; `AppModel` mirrors it into a stored property and
+  refreshes it in `syncServices()`. Turning it back into a computed property
+  silently breaks every view that reads it.
 - **The app icon must be full-bleed and resized with `sips`.** macOS 26 treats a
   PNG drawn through our own `NSBitmapImageRep` as a legacy icon and puts a light
   plate behind it in the Dock. See `Design/make-appicon.swift`.

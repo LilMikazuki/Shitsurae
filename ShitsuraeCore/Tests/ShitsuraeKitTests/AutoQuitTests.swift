@@ -28,20 +28,14 @@ private func temporaryStore() -> (directory: URL, store: LayoutStore) {
 
 @MainActor
 private func makeModel(
-    in directory: URL,
     store: LayoutStore,
     quitter: any AppQuitting,
     engine: FakeDockEngine = FakeDockEngine()
 ) -> AppModel {
     let defaults = temporaryDefaults()
-    let backup = DockBackup(
-        directory: directory.appendingPathComponent("backup"),
-        domain: directory.appendingPathComponent("domain.plist").path
-    )
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
-        restorer: RestoreService(backup: backup, restarter: FakeRestarter(), defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: quitter
     )
@@ -51,9 +45,9 @@ private func makeModel(
 
 @Test @MainActor func applyingQuitsOnlyTheAppsOutsideTheLayout() async throws {
     let quitter = FakeAppQuitter(running: ["a.app", "b.app", "stray.app"])
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app", "b.app"], quitsOtherApps: true))
-    let model = makeModel(in: directory, store: store, quitter: quitter)
+    let model = makeModel(store: store, quitter: quitter)
 
     try await model.apply(id: #require(model.layouts.first).id)
 
@@ -62,9 +56,9 @@ private func makeModel(
 
 @Test @MainActor func applyingQuitsNothingWhenTheLayoutHasTheSettingOff() async throws {
     let quitter = FakeAppQuitter(running: ["a.app", "stray.app"])
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
-    let model = makeModel(in: directory, store: store, quitter: quitter)
+    let model = makeModel(store: store, quitter: quitter)
 
     try await model.apply(id: #require(model.layouts.first).id)
 
@@ -73,11 +67,11 @@ private func makeModel(
 
 @Test @MainActor func applyingALayoutUsesItsOwnSettingNotAnotherLayouts() async throws {
     let quitter = FakeAppQuitter(running: ["a.app", "stray.app"])
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     let quiet = layout("Quiet", order: 0, apps: ["a.app"], quitsOtherApps: false)
     let strict = layout("Strict", order: 1, apps: ["a.app"], quitsOtherApps: true)
     try store.saveAll([quiet, strict])
-    let model = makeModel(in: directory, store: store, quitter: quitter)
+    let model = makeModel(store: store, quitter: quitter)
 
     await model.apply(id: quiet.id)
     #expect(quitter.quitted.isEmpty, "the other layout's setting must not leak into this apply")
@@ -88,11 +82,11 @@ private func makeModel(
 
 @Test @MainActor func aFailedApplyQuitsNothing() async throws {
     let quitter = FakeAppQuitter(running: ["stray.app"])
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: true))
     let engine = FakeDockEngine()
     engine.applyError = DockWriteError.synchronizeFailed
-    let model = makeModel(in: directory, store: store, quitter: quitter, engine: engine)
+    let model = makeModel(store: store, quitter: quitter, engine: engine)
 
     try await model.apply(id: #require(model.layouts.first).id)
 
@@ -100,20 +94,20 @@ private func makeModel(
 }
 
 @Test @MainActor func theSettingIsSavedWithItsLayout() throws {
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
-    let first = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+    let first = makeModel(store: store, quitter: FakeAppQuitter())
 
     try first.setQuitsOtherApps(id: #require(first.layouts.first).id, true)
 
-    let second = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+    let second = makeModel(store: store, quitter: FakeAppQuitter())
     #expect(second.layouts.map(\.quitsOtherApps) == [true])
 }
 
 @Test @MainActor func turningAutoQuitOnKeepsTheActiveLayoutActive() async throws {
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: false))
-    let model = makeModel(in: directory, store: store, quitter: FakeAppQuitter())
+    let model = makeModel(store: store, quitter: FakeAppQuitter())
     let id = try #require(model.layouts.first).id
     await model.apply(id: id)
     #expect(model.activeLayoutID == id)
@@ -155,9 +149,9 @@ private func makeModel(
 
 @Test @MainActor func anEmptyLayoutQuitsNothing() async throws {
     let quitter = FakeAppQuitter(running: ["a.app", "b.app"])
-    let (directory, store) = temporaryStore()
+    let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: [], quitsOtherApps: true))
-    let model = makeModel(in: directory, store: store, quitter: quitter)
+    let model = makeModel(store: store, quitter: quitter)
 
     try await model.apply(id: #require(model.layouts.first).id)
 
@@ -178,7 +172,7 @@ private func makeModel(
         settings: DockSettings(),
         quitsOtherApps: true
     ))
-    let model = makeModel(in: directory, store: store, quitter: quitter)
+    let model = makeModel(store: store, quitter: quitter)
 
     try await model.apply(id: #require(model.layouts.first).id)
 

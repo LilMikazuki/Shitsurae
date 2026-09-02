@@ -19,11 +19,9 @@ occasion at hand. Work, personal, screen sharing — each gets its own Dock.
   with unsaved work can still stop you.
 - **Edit a layout in place** — drag tiles to reorder, drop an app from Finder to
   add it, remove one from the tile's context menu.
-- **Restore your original Dock.** The first time a layout is applied, Shitsurae
-  backs up the untouched Dock domain and keeps that backup for good.
-
-Shitsurae never writes to the Dock without a backup it can restore, and it tells
-you plainly whether a failure left your Dock alone or already changed it.
+On first launch Shitsurae saves whatever is in your Dock as a layout called
+`Dock 1`, so applying it later puts the Dock back the way you found it. It also
+tells you plainly whether a failure left your Dock alone or already changed it.
 
 ## Requirements
 
@@ -50,7 +48,7 @@ swift test --package-path ShitsuraeCore
 | Path | What lives there |
 | --- | --- |
 | `Shitsurae/` | The app target: SwiftUI views, the menu bar scene, alert presentation. |
-| `ShitsuraeCore/Sources/ShitsuraeCore/` | Reading and writing `com.apple.dock`, the backup, restarting the Dock. Knows nothing about layouts. |
+| `ShitsuraeCore/Sources/ShitsuraeCore/` | Reading and writing `com.apple.dock`, restarting the Dock. Knows nothing about layouts. |
 | `ShitsuraeCore/Sources/ShitsuraeKit/` | Layout storage, services, `AppModel`. Platform-aware, UI-free. |
 | `ShitsuraeCore/Sources/shitsurae-cli/` | A debugging CLI for the core. |
 | `Design/` | The app icon and the script that builds it. |
@@ -69,7 +67,6 @@ consumer.
 
 - Layouts: `~/Library/Application Support/Shitsurae/layouts`, one JSON file each,
   so they can be copied between machines.
-- The Dock backup: `~/Library/Application Support/Shitsurae/backup`.
 - Hotkeys: in the app's preferences domain, not in the layout files — a layout
   copied to another machine deliberately brings no shortcuts with it.
 
@@ -83,11 +80,8 @@ Usage: shitsurae-cli <command>
 Commands:
   dump [--json]            Print the current Dock layout and settings;
                            --json prints a DockState JSON document instead
-  backup                   Create the one-time backup of the Dock domain
   apply <file> [--dry-run] Apply a DockState JSON file; --dry-run prints the
                            result without touching the real Dock
-  restore                  Restore the Dock domain from the backup and
-                           restart the Dock. Fails if no backup exists.
 ```
 
 ## Known limits

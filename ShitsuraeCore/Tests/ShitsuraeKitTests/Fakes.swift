@@ -67,31 +67,6 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
     }
 }
 
-final class FakeRestarter: DockRestarting, @unchecked Sendable {
-    private let lock = NSLock()
-    private nonisolated(unsafe) var _error: Error?
-    private nonisolated(unsafe) var _restartCount = 0
-
-    var error: Error? {
-        get { lock.withLock { _error } }
-        set { lock.withLock { _error = newValue } }
-    }
-
-    var restartCount: Int {
-        lock.withLock { _restartCount }
-    }
-
-    func restart() throws {
-        let thrown: Error? = lock.withLock {
-            _restartCount += 1
-            return _error
-        }
-        if let thrown {
-            throw thrown
-        }
-    }
-}
-
 final class InMemoryUserDefaults: UserDefaults, @unchecked Sendable {
     private let lock = NSLock()
     private nonisolated(unsafe) var storage: [String: Any] = [:]

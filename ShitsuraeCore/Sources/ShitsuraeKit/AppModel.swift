@@ -3,21 +3,14 @@ import Foundation
 import Observation
 import ShitsuraeCore
 
-public enum DockWriteStage: Equatable, Sendable {
-    case restartRefused
-    case writeIncomplete
-}
-
 /// Exactly one reason — `writtenButNotApplied` — means the Dock has already
 /// changed. Merging it with the others would make the messages lie.
 public enum ShitsuraeFailure: Equatable, Sendable {
     case unreadableLayout
     case unsupportedSetting(key: String, value: String)
     case unsupportedTile(String)
-    case backupFailed
     case writeFailed
-    case writtenButNotApplied(DockWriteStage)
-    case restoreFailed
+    case writtenButNotApplied
 
     public init(from error: Error) {
         switch error {
@@ -30,20 +23,10 @@ public enum ShitsuraeFailure: Equatable, Sendable {
             case .wrongType, .malformedTile:
                 self = .unreadableLayout
             }
-        case let error as DockBackupError:
-            switch error {
-            case .backupDirectoryUnavailable, .exportCouldNotStart,
-                 .exportFailed, .exportProducedInvalidFile:
-                self = .backupFailed
-            case .backupMissing:
-                self = .restoreFailed
-            case .importCouldNotStart, .importFailed, .importDidNotApply:
-                self = .writtenButNotApplied(.writeIncomplete)
-            }
         case is DockWriteError:
             self = .writeFailed
         case is DockRestartError:
-            self = .writtenButNotApplied(.restartRefused)
+            self = .writtenButNotApplied
         default:
             self = .unreadableLayout
         }
@@ -51,7 +34,6 @@ public enum ShitsuraeFailure: Equatable, Sendable {
 }
 
 public enum ShitsuraeAlertKind: Equatable, Sendable {
-    case restore
     case saveFailed
     case delete(id: UUID, name: String)
     case failure(ShitsuraeFailure)
@@ -78,19 +60,16 @@ public final class AppModel {
     private let quitter: any AppQuitting
     private let store: LayoutStore
     private let switcher: SwitchService
-    private let restorer: RestoreService
     public let shortcuts: ShortcutRecorder
 
     public init(
         store: LayoutStore,
         switcher: SwitchService,
-        restorer: RestoreService,
         shortcuts: ShortcutRecorder = ShortcutRecorder(),
         quitter: any AppQuitting = WorkspaceAppQuitter()
     ) {
         self.store = store
         self.switcher = switcher
-        self.restorer = restorer
         self.shortcuts = shortcuts
         self.quitter = quitter
         activeLayoutID = switcher.lastAppliedLayoutID
@@ -99,8 +78,6 @@ public final class AppModel {
     /// Mirrors rather than service lookups: the services keep this state in
     /// `UserDefaults` and on disk, where observation cannot see it.
     public private(set) var activeLayoutID: UUID?
-
-    public private(set) var canRestore = false
 
     public private(set) var unreadableFiles: [String] = []
 
@@ -113,7 +90,6 @@ public final class AppModel {
 
     private func syncServices() {
         activeLayoutID = switcher.lastAppliedLayoutID
-        canRestore = restorer.canRestore
     }
 
     public var selectedLayout: DockLayout? {
@@ -380,10 +356,6 @@ public final class AppModel {
         return "Last used \(lastUsedFormatter.string(from: date))"
     }
 
-    public func askRestore() {
-        alert = .restore
-    }
-
     public func askDelete() {
         guard let layout = selectedLayout else { return }
         alert = .delete(id: layout.id, name: layout.name)
@@ -395,18 +367,6 @@ public final class AppModel {
 
     public func confirmAlert() async {
         switch alert {
-        case .restore:
-            alert = nil
-            guard !isChangingDock else { return }
-            isChangingDock = true
-            defer { isChangingDock = false }
-            let restorer = restorer
-            do {
-                try await offMainThread { try restorer.restore() }
-            } catch {
-                alert = .failure(ShitsuraeFailure(from: error))
-            }
-            syncServices()
         case let .delete(id, _):
             alert = nil
             delete(id: id)

@@ -44,21 +44,10 @@ private final class NonSynchronizingStore: DockPreferenceStore {
     }
 }
 
-private func temporaryFolder() throws -> URL {
-    let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("shitsurae-engine-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-    return url
-}
-
-@Test func applyingWritesBacksUpAndRestarts() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
+@Test func applyingWritesAndRestarts() throws {
     let store = try fixtureStore()
-    let backup = DockBackup(directory: dir)
     let restarter = FakeRestarter()
-    let engine = DockEngine(store: store, backup: backup, restarter: restarter)
+    let engine = DockEngine(store: store, restarter: restarter)
 
     var target = try engine.read()
     target.apps = [DockApp(
@@ -69,49 +58,25 @@ private func temporaryFolder() throws -> URL {
     try engine.apply(target)
 
     #expect(try engine.read().apps.count == 1)
-    #expect(backup.exists == true)
     #expect(restarter.restarts == 1)
 }
 
 @Test func anUnreadableDomainForbidsWriting() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
     let store = InMemoryDockStore([DockKey.tilesize: "large"])
     let restarter = FakeRestarter()
-    let engine = DockEngine(store: store, backup: DockBackup(directory: dir), restarter: restarter)
+    let engine = DockEngine(store: store, restarter: restarter)
 
     #expect(throws: DockReadError.self) {
         try engine.apply(DockState(apps: [], settings: DockSettings()))
     }
     #expect(store.value(forKey: DockKey.apps) == nil)
     #expect(restarter.restarts == 0)
-    #expect(DockBackup(directory: dir).exists == false)
-}
-
-@Test func reapplyingDoesNotMakeASecondBackup() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
-    let engine = try DockEngine(
-        store: fixtureStore(),
-        backup: DockBackup(directory: dir),
-        restarter: FakeRestarter()
-    )
-    let state = try engine.read()
-    try engine.apply(state)
-    let first = try Data(contentsOf: DockBackup(directory: dir).backupURL)
-    try engine.apply(state)
-    #expect(try Data(contentsOf: DockBackup(directory: dir).backupURL) == first)
 }
 
 @Test func aSyncFailureCancelsTheRestart() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
     let store = try NonSynchronizingStore(fixtureStore())
     let restarter = FakeRestarter()
-    let engine = DockEngine(store: store, backup: DockBackup(directory: dir), restarter: restarter)
+    let engine = DockEngine(store: store, restarter: restarter)
 
     #expect(throws: DockWriteError.synchronizeFailed) {
         try engine.apply(DockState(apps: [], settings: DockSettings()))
@@ -119,15 +84,11 @@ private func temporaryFolder() throws -> URL {
     #expect(restarter.restarts == 0)
 }
 
-@Test func aRestartErrorIsNotSwallowedButTheWriteAndBackupAreDone() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
+@Test func aRestartErrorIsNotSwallowedButTheWriteIsDone() throws {
     let store = try fixtureStore()
-    let backup = DockBackup(directory: dir)
     let restarter = FakeRestarter()
     restarter.errorToThrow = .terminateRefused
-    let engine = DockEngine(store: store, backup: backup, restarter: restarter)
+    let engine = DockEngine(store: store, restarter: restarter)
 
     var target = try engine.read()
     target.apps = [DockApp(
@@ -141,18 +102,13 @@ private func temporaryFolder() throws -> URL {
     }
 
     #expect(try engine.read().apps.count == 1)
-    #expect(backup.exists == true)
 }
 
 @Test func theRestartCounterCountsAttemptsNotSuccesses() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
     let restarter = FakeRestarter()
     restarter.errorToThrow = .terminateRefused
     let engine = try DockEngine(
         store: fixtureStore(),
-        backup: DockBackup(directory: dir),
         restarter: restarter
     )
 
@@ -201,13 +157,9 @@ private final class FakeDockProcess: DockProcess, @unchecked Sendable {
 }
 
 @Test func applyingAStateTheDockAlreadyHoldsWritesNothing() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
     let restarter = FakeRestarter()
     let engine = try DockEngine(
         store: fixtureStore(),
-        backup: DockBackup(directory: dir),
         restarter: restarter
     )
 
@@ -216,13 +168,9 @@ private final class FakeDockProcess: DockProcess, @unchecked Sendable {
 }
 
 @Test func applyingADifferentStateWritesAndRestarts() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
     let restarter = FakeRestarter()
     let engine = try DockEngine(
         store: fixtureStore(),
-        backup: DockBackup(directory: dir),
         restarter: restarter
     )
 
@@ -234,18 +182,20 @@ private final class FakeDockProcess: DockProcess, @unchecked Sendable {
     #expect(try engine.read().settings.autohide == wanted.settings.autohide)
 }
 
-@Test func aSkippedApplyStillLeavesABackup() throws {
-    let dir = try temporaryFolder()
-    defer { try? FileManager.default.removeItem(at: dir) }
-
+@Test func applyingASavedStateAgainPutsBackEverySettingTheAppCanChange() throws {
     let engine = try DockEngine(
         store: fixtureStore(),
-        backup: DockBackup(directory: dir),
         restarter: FakeRestarter()
     )
+    let saved = try engine.read()
 
-    _ = try engine.applyIfNeeded(engine.read())
+    var drifted = DockState(apps: [], settings: DockSettings())
+    drifted.settings.tilesize = 99
+    drifted.settings.orientation = .left
+    try engine.apply(drifted)
+    #expect(try engine.read() != saved)
 
-    let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
-    #expect(files.isEmpty == false)
+    try engine.apply(saved)
+
+    #expect(try engine.read() == saved)
 }

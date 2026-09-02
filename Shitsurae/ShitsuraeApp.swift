@@ -26,14 +26,9 @@ struct ShitsuraeApp: App {
         LayoutStore.migrateLegacyDirectory()
         let engine = DockEngine.live()
         let switcher = SwitchService(engine: engine)
-        let restorer = RestoreService(
-            backup: DockBackup(directory: DockBackup.defaultDirectory),
-            restarter: DockRestarter()
-        )
         let model = AppModel(
             store: LayoutStore(directory: LayoutStore.defaultDirectory),
-            switcher: switcher,
-            restorer: restorer
+            switcher: switcher
         )
         model.reload()
         model.seedInitialLayoutIfNeeded()
