@@ -18,7 +18,8 @@ private func makeModel(
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: hotkeys)
     )
     model.reload()
@@ -337,7 +338,8 @@ private final class Flag: @unchecked Sendable {
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults)
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: defaults)
     )
     model.reload()
     #expect(model.layouts.count == 1)
@@ -464,7 +466,8 @@ private final class Flag: @unchecked Sendable {
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
     )
     model.reload()
@@ -487,7 +490,8 @@ private final class Flag: @unchecked Sendable {
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
     )
     model.reload()
@@ -612,7 +616,8 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
 
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: temporaryDefaults())
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: temporaryDefaults())
     )
     model.reload()
 
@@ -630,7 +635,8 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
 
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: temporaryDefaults())
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: temporaryDefaults())
     )
     model.reload()
     #expect(model.layouts.count == 1)
@@ -644,4 +650,92 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     #expect(FileManager.default.fileExists(
         atPath: dir.appendingPathComponent("\(arrived.id.uuidString).json").path
     ))
+}
+
+@Test @MainActor func theActiveLayoutSurvivesRelaunchingTheApp() async throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-relaunch-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let layout = testLayout("Work", order: 0)
+    try store.save(layout)
+    let defaults = temporaryDefaults()
+
+    let first = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: defaults),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    first.reload()
+    await first.apply(id: layout.id)
+
+    let second = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: defaults),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    second.reload()
+
+    #expect(second.activeLayoutID == layout.id)
+}
+
+@Test @MainActor func aRenameThatReachedTheDiskIsShownEvenWhenTheFolderCannotBeListed() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-unlistable-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+        try? FileManager.default.removeItem(at: dir)
+    }
+    let store = LayoutStore(directory: dir)
+    let layout = testLayout("Work", order: 0)
+    try store.save(layout)
+
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: temporaryDefaults()),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    model.reload()
+    #expect(model.layouts.count == 1)
+
+    try FileManager.default.setAttributes([.posixPermissions: 0o333], ofItemAtPath: dir.path)
+
+    #expect(model.rename(id: layout.id, to: "Focus"))
+    #expect(model.layouts.first?.name == "Focus")
+    #expect(model.storeUnavailable == false)
+}
+
+@Test @MainActor func anEditTheStoreRefusedIsNotShownAndThenTakenBack() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-readonly-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path)
+        try? FileManager.default.removeItem(at: dir)
+    }
+    let store = LayoutStore(directory: dir)
+    let layout = testLayout("Work", order: 0)
+    try store.save(layout)
+
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: temporaryDefaults()),
+        shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys())
+    )
+    model.reload()
+
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+
+    #expect(model.rename(id: layout.id, to: "Focus") == false)
+    #expect(model.alert == .saveFailed)
+    #expect(model.layouts.first?.name == "Work")
+
+    model.reload()
+    #expect(model.layouts.first?.name == "Work")
+    #expect(model.storeUnavailable == false)
 }

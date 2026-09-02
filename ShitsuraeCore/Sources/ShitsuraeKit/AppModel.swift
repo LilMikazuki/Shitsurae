@@ -58,19 +58,22 @@ public final class AppModel {
     private let quitter: any AppQuitting
     private let store: LayoutStore
     private let switcher: SwitchService
+    private let marker: ActiveLayoutMarker
     public let shortcuts: ShortcutRecorder
 
     public init(
         store: LayoutStore,
         switcher: SwitchService,
+        marker: ActiveLayoutMarker = ActiveLayoutMarker(),
         shortcuts: ShortcutRecorder = ShortcutRecorder(),
         quitter: any AppQuitting = WorkspaceAppQuitter()
     ) {
         self.store = store
         self.switcher = switcher
+        self.marker = marker
         self.shortcuts = shortcuts
         self.quitter = quitter
-        activeLayoutID = switcher.lastAppliedLayoutID
+        activeLayoutID = marker.id
     }
 
     /// Mirrors rather than service lookups: the services keep this state in
@@ -88,8 +91,9 @@ public final class AppModel {
     /// describing whichever finished last.
     public private(set) var isChangingDock = false
 
-    private func syncServices() {
-        activeLayoutID = switcher.lastAppliedLayoutID
+    private func setActiveLayout(_ id: UUID?) {
+        marker.id = id
+        activeLayoutID = id
     }
 
     public var selectedLayout: DockLayout? {
@@ -105,11 +109,19 @@ public final class AppModel {
         } else {
             storeUnavailable = true
         }
+        listDidChange()
+    }
+
+    private func listDidChange() {
         if selectedLayout == nil {
             selectedLayoutID = layouts.first?.id
         }
         shortcuts.register(layouts.map(\.id))
-        syncServices()
+    }
+
+    private func replace(_ layout: DockLayout) {
+        guard let index = layouts.firstIndex(where: { $0.id == layout.id }) else { return }
+        layouts[index] = layout
     }
 
     public var layoutsFolder: URL {
@@ -143,22 +155,19 @@ public final class AppModel {
                 quitOthers(for: snapshot)
             }
             selectedLayoutID = id
-            guard var fresh = layouts.first(where: { $0.id == id }) else {
-                switcher.lastAppliedLayoutID = nil
-                reload()
-                return
+            if var fresh = layouts.first(where: { $0.id == id }),
+               fresh.dockState == snapshot.dockState
+            {
+                setActiveLayout(id)
+                fresh.lastUsedAt = Date()
+                if (try? store.save(fresh)) != nil {
+                    replace(fresh)
+                }
+            } else {
+                setActiveLayout(nil)
             }
-            guard fresh.dockState == snapshot.dockState else {
-                switcher.lastAppliedLayoutID = nil
-                reload()
-                return
-            }
-            fresh.lastUsedAt = Date()
-            try? store.save(fresh)
-            reload()
         } catch {
             alert = .failure(ShitsuraeFailure(from: error))
-            syncServices()
         }
     }
 
@@ -190,7 +199,8 @@ public final class AppModel {
             alert = .saveFailed
             throw error
         }
-        reload()
+        layouts.append(layout)
+        listDidChange()
         selectedLayoutID = layout.id
     }
 
@@ -205,9 +215,9 @@ public final class AppModel {
             return
         }
 
-        switcher.lastAppliedLayoutID = layout.id
-        reload()
-        selectedLayoutID = layout.id
+        layouts.append(layout)
+        setActiveLayout(layout.id)
+        listDidChange()
     }
 
     public func deleteSelected() {
@@ -222,11 +232,12 @@ public final class AppModel {
             return
         }
         shortcuts.clear(for: id)
+        layouts.removeAll { $0.id == id }
         if activeLayoutID == id {
-            switcher.lastAppliedLayoutID = nil
+            setActiveLayout(nil)
         }
         selectedLayoutID = nil
-        reload()
+        listDidChange()
     }
 
     @discardableResult
@@ -245,7 +256,7 @@ public final class AppModel {
             alert = .saveFailed
             return false
         }
-        reload()
+        replace(layout)
         return true
     }
 
@@ -261,7 +272,7 @@ public final class AppModel {
             alert = .saveFailed
             return
         }
-        reload()
+        replace(layout)
     }
 
     public func moveApp(in id: UUID, from: Int, to: Int) {
@@ -347,10 +358,10 @@ public final class AppModel {
             alert = .saveFailed
             return
         }
-        if id == switcher.lastAppliedLayoutID {
-            switcher.lastAppliedLayoutID = nil
+        replace(layout)
+        if id == activeLayoutID {
+            setActiveLayout(nil)
         }
-        reload()
     }
 
     private nonisolated static let lastUsedFormatter: DateFormatter = {

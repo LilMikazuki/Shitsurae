@@ -43,7 +43,8 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     let engine = CountingEngine()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         quitter: FakeAppQuitter()
     )
     model.reload()
@@ -67,7 +68,8 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     engine.applyError = .write(.synchronizeFailed)
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         quitter: FakeAppQuitter()
     )
     model.reload()
@@ -121,7 +123,8 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     let engine = GatedEngine()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: FakeAppQuitter()
     )
@@ -155,7 +158,8 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
     let engine = GatedEngine()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: FakeAppQuitter()
     )

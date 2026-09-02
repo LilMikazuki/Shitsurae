@@ -5,7 +5,7 @@ import Testing
 
 @Test func applyingHandsTheEngineTheLayoutState() throws {
     let engine = FakeDockEngine()
-    let service = SwitchService(engine: engine, defaults: temporaryDefaults())
+    let service = SwitchService(engine: engine)
     let layout = testLayout()
 
     try service.apply(layout)
@@ -13,38 +13,9 @@ import Testing
     #expect(engine.applied == [layout.dockState])
 }
 
-@Test func applyingRemembersTheLastLayout() throws {
-    let service = SwitchService(engine: FakeDockEngine(), defaults: temporaryDefaults())
-    let layout = testLayout()
-
-    try service.apply(layout)
-
-    #expect(service.lastAppliedLayoutID == layout.id)
-}
-
-@Test func aFailedApplyDoesNotRememberTheLayout() {
-    let engine = FakeDockEngine()
-    engine.applyError = .write(.synchronizeFailed)
-    let service = SwitchService(engine: engine, defaults: temporaryDefaults())
-
-    #expect(throws: DockError.write(.synchronizeFailed)) {
-        try service.apply(testLayout())
-    }
-    #expect(service.lastAppliedLayoutID == nil)
-}
-
-@Test func theLastLayoutSurvivesRecreatingTheService() throws {
-    let defaults = temporaryDefaults()
-    let layout = testLayout()
-    try SwitchService(engine: FakeDockEngine(), defaults: defaults).apply(layout)
-
-    let fresh = SwitchService(engine: FakeDockEngine(), defaults: defaults)
-    #expect(fresh.lastAppliedLayoutID == layout.id)
-}
-
 @Test func applyingSkipsApplicationsThatAreGoneFromDisk() throws {
     let engine = FakeDockEngine()
-    let service = SwitchService(engine: engine, defaults: temporaryDefaults())
+    let service = SwitchService(engine: engine)
     let layout = DockLayout(
         order: 0,
         name: "Work",

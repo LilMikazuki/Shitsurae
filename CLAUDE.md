@@ -60,9 +60,10 @@ review lived there. Two rules, both mechanically enforced by
 ## What is deliberately left alone
 
 - **`AppModel` is a facade over a genuinely coupled core, not a god object.**
-  Every content edit has to run through `mutate`, which clears the applied mark
-  and reloads, so splitting the editor out would hand a new type the store, the
-  marker and the reload — most of the model's collaborators, for a thicker seam.
+  Every content edit has to run through `mutate`, which saves, replaces the
+  layout in the list and clears the applied mark, so splitting the editor out
+  would hand a new type the store, the marker and the list — most of the model's
+  collaborators, for a thicker seam.
   Eight review passes attributed no defect to its size.
 - **The app target has no tests.** The logic that can be tested lives in the
   package; what remains in the views is layout and wiring. `TileDrag` and
@@ -118,10 +119,16 @@ review lived there. Two rules, both mechanically enforced by
   saves the layout without going through `mutate`, so toggling it leaves the
   active mark alone: the Dock still holds that layout. Pinned by
   `turningAutoQuitOnKeepsTheActiveLayoutActive`.
-- **State kept outside the model is invisible to SwiftUI.** `activeLayoutID`
-  lives in `UserDefaults`; `AppModel` mirrors it into a stored property and
-  refreshes it in `syncServices()`. Turning it back into a computed property
-  silently breaks every view that reads it.
+- **State kept outside the model is invisible to SwiftUI.** `activeLayoutID` is
+  a stored property written only by `setActiveLayout`, which writes through to
+  the one `ActiveLayoutMarker` the model owns. Turning it into a computed
+  property over `UserDefaults` silently breaks every view that reads it.
+- **`reload()` is the only path that fills `layouts` from the folder, and no edit
+  calls it.** An edit updates the list from the value it wrote, so a folder that
+  cannot be listed never hides a save that succeeded. It runs at launch and,
+  through `refreshFromDisk()`, whenever the settings window becomes key. Pinned
+  by `aRenameThatReachedTheDiskIsShownEvenWhenTheFolderCannotBeListed` and
+  `anEditTheStoreRefusedIsNotShownAndThenTakenBack`.
 - **The app icon must be full-bleed and resized with `sips`.** macOS 26 treats a
   PNG drawn through our own `NSBitmapImageRep` as a legacy icon and puts a light
   plate behind it in the Dock. See `Design/make-appicon.swift`.

@@ -41,7 +41,8 @@ private func makeModel(
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: engine, defaults: defaults),
+        switcher: SwitchService(engine: engine),
+        marker: ActiveLayoutMarker(defaults: defaults),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys()),
         quitter: quitter
     )

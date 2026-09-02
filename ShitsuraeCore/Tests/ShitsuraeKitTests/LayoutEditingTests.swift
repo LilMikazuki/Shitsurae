@@ -22,7 +22,8 @@ private func makeModelWithLayout(_ paths: [String]) throws -> (AppModel, DockLay
     let defaults = temporaryDefaults()
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine(), defaults: defaults)
+        switcher: SwitchService(engine: FakeDockEngine()),
+        marker: ActiveLayoutMarker(defaults: defaults)
     )
     model.reload()
     model.selectedLayoutID = layout.id
