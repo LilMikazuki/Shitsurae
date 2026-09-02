@@ -602,3 +602,51 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     #expect(model.addApp(in: layout.id, atPath: finder) == false)
     #expect(model.selectedLayout?.apps.count == 1)
 }
+
+@Test @MainActor func aDuplicateLayoutFileDoesNotShowTheLayoutTwice() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-duplicates-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = testLayout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("Work copy.json")
+    )
+
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine(), defaults: temporaryDefaults())
+    )
+    model.reload()
+
+    #expect(model.layouts.count == 1)
+    #expect(model.duplicateFiles.map(\.name) == ["Work copy.json"])
+    #expect(model.duplicateFiles.map(\.layoutName) == ["Work"])
+}
+
+@Test @MainActor func aFileCopiedInDuringASessionIsShownAfterARefresh() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-refresh-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    try store.save(testLayout("Work", order: 0))
+
+    let model = AppModel(
+        store: store,
+        switcher: SwitchService(engine: FakeDockEngine(), defaults: temporaryDefaults())
+    )
+    model.reload()
+    #expect(model.layouts.count == 1)
+
+    let arrived = testLayout("Focus", order: 1)
+    try JSONEncoder().encode(arrived).write(to: dir.appendingPathComponent("Focus.json"))
+
+    model.refreshFromDisk()
+
+    #expect(model.layouts.map(\.name) == ["Work", "Focus"])
+    #expect(FileManager.default.fileExists(
+        atPath: dir.appendingPathComponent("\(arrived.id.uuidString).json").path
+    ))
+}

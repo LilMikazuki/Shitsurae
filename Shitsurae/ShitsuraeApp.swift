@@ -24,12 +24,11 @@ struct ShitsuraeApp: App {
 
     init() {
         LayoutStore.migrateLegacyDirectory()
+        let store = LayoutStore(directory: LayoutStore.defaultDirectory)
+        store.adoptStrayFiles()
         let engine = DockEngine.live()
         let switcher = SwitchService(engine: engine)
-        let model = AppModel(
-            store: LayoutStore(directory: LayoutStore.defaultDirectory),
-            switcher: switcher
-        )
+        let model = AppModel(store: store, switcher: switcher)
         model.reload()
         model.seedInitialLayoutIfNeeded()
         model.shortcuts.onTrigger { [weak model] id in

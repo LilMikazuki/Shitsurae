@@ -66,7 +66,11 @@ consumer.
 ### Where your data lives
 
 - Layouts: `~/Library/Application Support/Shitsurae/layouts`, one JSON file each,
-  so they can be copied between machines.
+  so they can be copied between machines. A file copied in under any name is
+  picked up the next time the settings window is opened, or at the next launch,
+  and renamed after the layout's id. A second file holding a layout that is
+  already there is skipped and named in the settings sidebar rather than shown
+  twice.
 - Hotkeys: in the app's preferences domain, not in the layout files — a layout
   copied to another machine deliberately brings no shortcuts with it.
 

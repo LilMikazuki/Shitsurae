@@ -90,6 +90,14 @@ review lived there. Two rules, both mechanically enforced by
   untouched Dock at first launch, and applying it restores every key the app can
   write, because a layout stores all seven and `nil` clears rather than skips.
   Pinned by `applyingASavedStateAgainPutsBackEverySettingTheAppCanChange`.
+- **A layout is shown from one file, and that file is the one `save` and
+  `delete` address.** `<id>.json` wins over any other file holding the same id,
+  so an edit is never shadowed by a stale copy; the losers are reported as
+  duplicates and never deleted, except by Delete, which removes every file
+  holding that layout, address last. A file under another name is renamed into
+  place by `adoptStrayFiles()` at launch and on `refreshFromDisk()`. Pinned by
+  `anEditIsNeverShadowedByAStaleCopyOfTheSameLayout` and
+  `aSkippedDuplicateFileIsNamedNotHidden`.
 - **A tile's identity is its path, not its bundle identifier.** Two applications
   may carry one identifier — Xcode and Xcode-beta, or two copies of Chrome — and
   the Dock holds both side by side. `DockLayout.withUniqueApps`,

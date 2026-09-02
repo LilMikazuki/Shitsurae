@@ -91,12 +91,20 @@ private func layout(_ name: String, order: Int) -> DockLayout {
 }
 
 @Test func deletingRemovesOnlyItsOwnFile() throws {
-    let store = try LayoutStore(directory: temporaryDirectory())
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
     let keep = layout("Keep", order: 0)
     let drop = layout("Drop", order: 1)
     try store.saveAll([keep, drop])
+    try Data("broken".utf8).write(to: dir.appendingPathComponent("broken.json"))
+
     try store.delete(id: drop.id)
+
     #expect(try store.load().layouts == [keep])
+    #expect(FileManager.default.fileExists(
+        atPath: dir.appendingPathComponent("broken.json").path
+    ))
 }
 
 @Test func deletingSomethingMissingDoesNotThrow() throws {
@@ -209,4 +217,188 @@ private func layout(_ name: String, order: Int) -> DockLayout {
     ))
 
     #expect(try store.load().layouts.first?.apps.count == 2)
+}
+
+@Test func aLayoutPresentInTwoFilesIsListedOnce() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("Work copy.json")
+    )
+
+    #expect(try store.load().layouts.count == 1)
+}
+
+@Test func anEditIsNeverShadowedByAStaleCopyOfTheSameLayout() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    var work = layout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("- Work.json")
+    )
+
+    work.name = "Focus"
+    try store.save(work)
+
+    #expect(try store.load().layouts.map(\.name) == ["Focus"])
+}
+
+@Test func aSkippedDuplicateFileIsNamedNotHidden() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("Work copy.json")
+    )
+
+    let loaded = try store.load()
+
+    #expect(loaded.duplicates.map(\.name) == ["Work copy.json"])
+    #expect(loaded.duplicates.map(\.layoutName) == ["Work"])
+    #expect(loaded.unreadable.isEmpty)
+}
+
+@Test func twoStraysHoldingOneIdShowTheSameOneOnEveryLoad() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    var first = layout("B", order: 0)
+    let encoder = JSONEncoder()
+    try encoder.encode(first).write(to: dir.appendingPathComponent("b.json"))
+    first.name = "A"
+    try encoder.encode(first).write(to: dir.appendingPathComponent("a.json"))
+
+    #expect(try store.load().layouts.map(\.name) == ["A"])
+    #expect(try store.load().layouts.map(\.name) == ["A"])
+    #expect(try store.load().duplicates.map(\.name) == ["b.json"])
+}
+
+@Test func aFileAtAnotherLayoutsAddressHidesNeitherLayout() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let a = layout("A", order: 0)
+    let b = layout("B", order: 1)
+    let encoder = JSONEncoder()
+    try encoder.encode(a).write(to: dir.appendingPathComponent("\(b.id.uuidString).json"))
+    try encoder.encode(b).write(to: dir.appendingPathComponent("\(a.id.uuidString).json"))
+    try encoder.encode(a).write(to: dir.appendingPathComponent("Work copy.json"))
+
+    let loaded = try store.load()
+
+    #expect(Set(loaded.layouts.map(\.id)) == Set([a.id, b.id]))
+    #expect(loaded.duplicates.map(\.name) == ["Work copy.json"])
+    #expect(loaded.duplicates.map(\.layoutName) == ["A"])
+}
+
+@Test func aFileCopiedInUnderAnotherNameIsEditableInPlace() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    var work = layout("Work", order: 0)
+    try JSONEncoder().encode(work).write(to: dir.appendingPathComponent("Work.json"))
+
+    store.adoptStrayFiles()
+    work.name = "Focus"
+    try store.save(work)
+
+    let loaded = try store.load()
+    #expect(loaded.layouts.map(\.name) == ["Focus"])
+    #expect(loaded.duplicates.isEmpty)
+    let json = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        .filter { $0.hasSuffix(".json") }
+    #expect(json == ["\(work.id.uuidString).json"])
+}
+
+@Test func aCorruptFileAtTheLayoutsAddressDoesNotHideAGoodCopy() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    let address = "\(work.id.uuidString).json"
+    try Data("not json".utf8).write(to: dir.appendingPathComponent(address))
+    try JSONEncoder().encode(work).write(to: dir.appendingPathComponent("Work.json"))
+
+    store.adoptStrayFiles()
+    let loaded = try store.load()
+
+    #expect(loaded.layouts.map(\.name) == ["Work"])
+    #expect(loaded.unreadable == [address])
+    #expect(loaded.duplicates.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent(address).path))
+    #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("Work.json").path))
+}
+
+@Test func adoptionNeverOverwritesOrDeletesAFile() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("Work copy.json")
+    )
+    try Data("broken".utf8).write(to: dir.appendingPathComponent("broken.json"))
+
+    let before = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+    let bytesBefore = try before.map { try Data(contentsOf: dir.appendingPathComponent($0)) }
+
+    store.adoptStrayFiles()
+
+    let after = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+    #expect(after == before)
+    #expect(try after.map { try Data(contentsOf: dir.appendingPathComponent($0)) } == bytesBefore)
+}
+
+@Test func deletingALayoutRemovesEveryFileThatHoldsIt() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    try store.save(work)
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: dir.appendingPathComponent("Work copy.json")
+    )
+
+    try store.delete(id: work.id)
+
+    let loaded = try store.load()
+    #expect(loaded.layouts.isEmpty)
+    #expect(loaded.duplicates.isEmpty)
+}
+
+@Test func aDeleteThatCannotFinishLeavesTheLayoutInPlace() throws {
+    let dir = try temporaryDirectory()
+    let store = LayoutStore(directory: dir)
+    let work = layout("Work", order: 0)
+    try store.save(work)
+    let copy = dir.appendingPathComponent("Work copy.json")
+    try FileManager.default.copyItem(
+        at: dir.appendingPathComponent("\(work.id.uuidString).json"),
+        to: copy
+    )
+    try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: copy.path)
+    defer {
+        try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: copy.path)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    #expect(throws: (any Error).self) { try store.delete(id: work.id) }
+
+    #expect(FileManager.default.fileExists(
+        atPath: dir.appendingPathComponent("\(work.id.uuidString).json").path
+    ))
+    #expect(try store.load().layouts.map(\.name) == ["Work"])
 }

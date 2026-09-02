@@ -57,11 +57,12 @@ struct LayoutSidebar: View {
                 }
             }
 
-            if !model.unreadableFiles.isEmpty {
-                Text("\(model.unreadableFiles.count) layout file(s) could not be read")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .help(model.unreadableFiles.joined(separator: "\n"))
+            if let note = SidebarNote.unreadable(model.unreadableFiles) {
+                folderNote(note, files: model.unreadableFiles)
+            }
+
+            if let note = SidebarNote.duplicates(model.duplicateFiles) {
+                folderNote(note, files: model.duplicateFiles.map(\.name))
             }
 
             Section {
@@ -134,6 +135,26 @@ struct LayoutSidebar: View {
         .badge(layout.id == model.activeLayoutID ? Text("Active") : nil)
     }
 
+    private func folderNote(_ text: String, files: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.orange)
+                .lineLimit(nil)
+
+            Button(SidebarNote.revealTitle) {
+                NSWorkspace.shared.activateFileViewerSelecting(
+                    files.map { model.layoutsFolder.appendingPathComponent($0) }
+                )
+            }
+            .buttonStyle(.link)
+            .font(.callout)
+            .pointerStyle(.link)
+            .help(files.joined(separator: "\n"))
+        }
+        .padding(.vertical, 4)
+    }
+
     private var emptyNote: some View {
         Text(
             model.storeUnavailable
@@ -143,6 +164,7 @@ struct LayoutSidebar: View {
         )
         .font(.callout)
         .foregroundStyle(model.storeUnavailable ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+        .lineLimit(nil)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.vertical, 6)
     }

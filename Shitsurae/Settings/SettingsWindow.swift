@@ -16,6 +16,7 @@ struct SettingsWindow: View {
     let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
 
+    @Environment(\.controlActiveState) private var activeState
     @State private var icons = AppIconLoader()
     @State private var page = SettingsPage()
 
@@ -24,6 +25,10 @@ struct SettingsWindow: View {
             .ignoresSafeArea()
             .frame(minWidth: 716, minHeight: 486)
             .background(WindowChrome())
+            .onChange(of: activeState) { _, state in
+                guard state == .key else { return }
+                model.refreshFromDisk()
+            }
     }
 }
 

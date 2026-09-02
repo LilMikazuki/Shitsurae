@@ -100,6 +100,13 @@ one on screen. Turn it off again when you are done testing.
 - [ ] Renaming to an existing name keeps the field open and says why; Esc cancels.
 - [ ] A long name truncates with an ellipsis and the row does not grow.
 - [ ] Deleting the active layout clears the `ACTIVE` badge.
+- [ ] A layout file copied into `~/Library/Application Support/Shitsurae/layouts` under another
+      name appears after the settings window is opened, without a relaunch, and can then be
+      renamed and deleted like any other.
+- [ ] A Finder duplicate of a layout file shows one row plus an orange line saying one file
+      duplicates another layout, whose tooltip names the file.
+- [ ] Deleting a layout that has a duplicate file removes both: the layout does not come back
+      after a relaunch.
 - [ ] On a machine with no layouts, launch the app and confirm `Dock 1` appears
       and is marked active. Apply a different layout, then apply `Dock 1`: the
       Dock returns to what it was, including settings that were absent before.

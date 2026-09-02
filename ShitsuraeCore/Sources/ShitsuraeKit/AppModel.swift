@@ -81,6 +81,8 @@ public final class AppModel {
 
     public private(set) var unreadableFiles: [String] = []
 
+    public private(set) var duplicateFiles: [DuplicateLayoutFile] = []
+
     public private(set) var storeUnavailable = false
 
     /// The Dock has one arrangement, so it gets one writer. Two applies in
@@ -100,6 +102,7 @@ public final class AppModel {
         if let loaded = try? store.load() {
             layouts = loaded.layouts
             unreadableFiles = loaded.unreadable
+            duplicateFiles = loaded.duplicates
             storeUnavailable = false
         } else {
             storeUnavailable = true
@@ -109,6 +112,15 @@ public final class AppModel {
         }
         shortcuts.register(layouts.map(\.id))
         syncServices()
+    }
+
+    public var layoutsFolder: URL {
+        store.directory
+    }
+
+    public func refreshFromDisk() {
+        store.adoptStrayFiles()
+        reload()
     }
 
     public func apply(id: UUID) async {
