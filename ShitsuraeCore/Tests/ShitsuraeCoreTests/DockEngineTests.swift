@@ -121,33 +121,39 @@ private final class NonSynchronizingStore: DockPreferenceStore {
 private final class FakeDockProcess: DockProcess, @unchecked Sendable {
     private let lock = NSLock()
     private let quits: Bool
+    private let runningForChecks: Int
     private nonisolated(unsafe) var _asked = false
+    private nonisolated(unsafe) var _checks = 0
 
-    init(quits: Bool) {
+    init(quits: Bool, runningForChecks: Int = 0) {
         self.quits = quits
+        self.runningForChecks = runningForChecks
     }
 
     var wasAsked: Bool {
         lock.withLock { _asked }
     }
 
+    var checks: Int {
+        lock.withLock { _checks }
+    }
+
     func terminate() -> Bool {
         lock.withLock { _asked = true }
         return quits
+    }
+
+    var isRunning: Bool {
+        lock.withLock {
+            _checks += 1
+            return _checks <= runningForChecks
+        }
     }
 }
 
 @Test func noDockRunningIsNotTreatedAsARestartFailure() throws {
     let restarter = DockRestarter(processes: { [] })
     #expect(throws: Never.self) { try restarter.restart() }
-}
-
-@Test func aDockThatRefusesToQuitIsARestartFailure() {
-    let stubborn = FakeDockProcess(quits: false)
-    let restarter = DockRestarter(processes: { [stubborn] })
-
-    #expect(throws: DockRestartError.terminateRefused) { try restarter.restart() }
-    #expect(stubborn.wasAsked)
 }
 
 @Test func aRunningDockIsAskedToQuit() throws {
@@ -198,4 +204,39 @@ private final class FakeDockProcess: DockProcess, @unchecked Sendable {
     try engine.apply(saved)
 
     #expect(try engine.read() == saved)
+}
+
+@Test func aDockThatIgnoresTheQuitRequestIsARestartFailure() {
+    let stubborn = FakeDockProcess(quits: true, runningForChecks: .max)
+    let restarter = DockRestarter(
+        processes: { [stubborn] },
+        timeout: 0.05,
+        pollInterval: 0.005
+    )
+
+    #expect(throws: DockRestartError.terminateRefused) { try restarter.restart() }
+    #expect(stubborn.wasAsked)
+}
+
+@Test func aDockThatHasAlreadyQuitIsNotARestartFailure() {
+    let gone = FakeDockProcess(quits: false)
+
+    #expect(throws: Never.self) { try DockRestarter(processes: { [gone] }).restart() }
+    #expect(gone.wasAsked)
+}
+
+@Test func aDockThatTakesAMomentToQuitIsWaitedForAndNoLonger() throws {
+    let slow = FakeDockProcess(quits: true, runningForChecks: 3)
+    let restarter = DockRestarter(
+        processes: { [slow] },
+        timeout: 2,
+        pollInterval: 0.005
+    )
+
+    let started = DispatchTime.now().uptimeNanoseconds
+    try restarter.restart()
+    let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1e9
+
+    #expect(slow.checks > 1)
+    #expect(elapsed < 1)
 }

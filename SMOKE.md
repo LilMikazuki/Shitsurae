@@ -159,10 +159,25 @@ one on screen. Turn it off again when you are done testing.
       apply starts by reading the Dock — so remove it with
       `defaults delete com.apple.dock persistent-apps` followed by `killall Dock`,
       which leaves an empty Dock, and then apply a saved layout.
-A failed Dock restart is no longer reachable by hand: the only surviving trigger
-is a running Dock that refuses to quit, which cannot be arranged from Terminal.
-An absent Dock is not a failure — launchd starts one and it reads the domain
-that was just written. Unit tests cover both.
+- [ ] `writtenButNotApplied` — freeze the Dock with `kill -STOP $(pgrep -x Dock)`, then apply a
+      different layout from the menu. The menu's layout rows stay disabled while Shitsurae waits;
+      after about five seconds expect "Your Dock was changed but not applied" with the
+      `killall Dock` advice, the `ACTIVE` badge does not move and the pill does not read
+      "Applied". Thaw with `kill -CONT $(pgrep -x Dock)`: the Dock processes the queued quit,
+      comes back and shows the new layout. Press Apply again — the layout is not marked active,
+      so this is a real apply: the Dock blinks and the pill turns "Applied".
+- [ ] The same refusal through the CLI, which runs no run loop: freeze the Dock the same way, then
+      `swift run shitsurae-cli apply state.json` with the file from Core step 2. After about five
+      seconds it exits non-zero with "The Dock layout was written, but the Dock did not restart:
+      The Dock was asked to quit but is still running." followed by the `killall Dock` line. Thaw
+      with `kill -CONT $(pgrep -x Dock)`; the Dock comes back holding the applied state. This is
+      the half of the proof that the liveness check works without a run loop; the Core apply steps
+      are the other half.
+
+An absent Dock is still not a failure. Note what brings it back: `com.apple.Dock.plist` sets
+`KeepAlive` to `SuccessfulExit: false`, and a polite quit is a successful exit, so the Dock
+returns on a demand for one of its Mach services rather than because launchd restarts it. Every
+step above that quits the Dock should confirm it actually comes back.
 - [ ] `unreadableLayout` — `defaults write com.apple.dock tilesize -string "big"`,
       `killall Dock`, then try to save a layout. Expect "can't read your Dock
       layout". Undo: `defaults delete com.apple.dock tilesize 2>/dev/null`, then

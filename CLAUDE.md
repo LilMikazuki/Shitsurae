@@ -90,6 +90,13 @@ review lived there. Two rules, both mechanically enforced by
   untouched Dock at first launch, and applying it restores every key the app can
   write, because a layout stores all seven and `nil` clears rather than skips.
   Pinned by `applyingASavedStateAgainPutsBackEverySettingTheAppCanChange`.
+- **The write and the restart are one step, in that order.** The Dock reads
+  `persistent-apps` at launch and holds the tile list in memory, then writes it
+  back enriched with its own `GUID` and bookmark data — which is why tiles in the
+  domain carry keys `DockWriter` never emits. A write with no restart is not
+  merely invisible: the running Dock overwrites it from memory, so the layout is
+  lost rather than delayed. Nothing may be inserted between the write and
+  `restarter.restart()` in `DockEngine.apply`.
 - **A layout that cannot be written to disk is not a Dock failure.** It raises
   `ShitsuraeAlertKind.saveFailed`, whose text promises the Dock is untouched —
   which it is, because nothing reached `DockEngine`.
