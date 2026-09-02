@@ -76,7 +76,8 @@ private func removeDomain(_ domain: String) {
     let (model, _, _) = try makeModel()
     try model.saveCurrentDock(named: "Work")
 
-    #expect(model.selectedLayoutID == model.layouts.first?.id)
+    let id = try #require(model.layouts.first?.id)
+    #expect(model.page == .layout(id))
     #expect(model.activeLayoutID == nil)
     #expect(model.layouts.first?.lastUsedAt == nil)
 }
@@ -198,7 +199,7 @@ private func removeDomain(_ domain: String) {
     let id = try #require(model.layouts.first?.id)
     await model.apply(id: id)
     #expect(model.activeLayoutID == id)
-    model.selectedLayoutID = id
+    model.page = .layout(id)
 
     model.deleteSelected()
 
@@ -213,7 +214,7 @@ private func removeDomain(_ domain: String) {
     await model.apply(id: focusID)
     let workID = try #require(model.layouts.first(where: { $0.id != focusID })?.id)
 
-    model.selectedLayoutID = workID
+    model.page = .layout(workID)
     model.deleteSelected()
 
     #expect(model.layouts.map(\.name) == ["Focus"])
@@ -242,7 +243,7 @@ private func removeDomain(_ domain: String) {
 @Test @MainActor func deleteAlertNamesTheSelectedLayout() throws {
     let (model, _, _) = try makeModel(layouts: [testLayout("Work", order: 0)])
     let id = try #require(model.layouts.first?.id)
-    model.selectedLayoutID = id
+    model.page = .layout(id)
 
     model.askDelete()
 
@@ -256,10 +257,10 @@ private func removeDomain(_ domain: String) {
     ])
     let work = try #require(model.layouts.first { $0.name == "Work" }).id
     let personal = try #require(model.layouts.first { $0.name == "Personal" }).id
-    model.selectedLayoutID = work
+    model.page = .layout(work)
     model.askDelete()
 
-    model.selectedLayoutID = personal
+    model.page = .layout(personal)
     await model.confirmAlert()
 
     #expect(model.layouts.map(\.name) == ["Personal"], "the dialog named Work; Work must go")
@@ -267,7 +268,7 @@ private func removeDomain(_ domain: String) {
 
 @Test @MainActor func deleteAlertDoesNotAppearWithoutASelection() throws {
     let (model, _, _) = try makeModel(layouts: [testLayout("Work", order: 0)])
-    model.selectedLayoutID = nil
+    model.page = nil
 
     model.askDelete()
 
@@ -372,7 +373,7 @@ private final class Flag: @unchecked Sendable {
     model.reload()
     let layout = try #require(model.layouts.first)
 
-    model.selectedLayoutID = layout.id
+    model.page = .layout(layout.id)
     model.shortcuts.start(layout.id)
     #expect(model.shortcuts.recordingID == layout.id)
 
@@ -391,11 +392,11 @@ private final class Flag: @unchecked Sendable {
     let work = try #require(model.layouts.first).id
     let personal = try #require(model.layouts.last).id
 
-    model.selectedLayoutID = work
+    model.page = .layout(work)
     model.shortcuts.start(work)
     #expect(hotkeys.enabled == false)
 
-    model.selectedLayoutID = personal
+    model.page = .layout(personal)
 
     #expect(model.shortcuts.recordingID == nil, "recording cannot outlive the screen it belongs to")
     #expect(hotkeys.enabled, "leaving the screen must give the user their shortcuts back")
@@ -738,4 +739,109 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     model.reload()
     #expect(model.layouts.first?.name == "Work")
     #expect(model.storeUnavailable == false)
+}
+
+@Test @MainActor func openingGeneralEndsARecording() throws {
+    let hotkeys = InMemoryHotkeys()
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")], hotkeys: hotkeys)
+    let layout = try #require(model.layouts.first)
+    model.page = .layout(layout.id)
+    model.shortcuts.start(layout.id)
+
+    model.page = .general
+
+    #expect(model.shortcuts.recordingID == nil)
+    #expect(hotkeys.enabled)
+}
+
+@Test @MainActor func savingWhileGeneralIsShownShowsTheNewLayout() throws {
+    let (model, _, _) = try makeModel()
+    model.page = .general
+
+    try model.saveCurrentDock(named: "Work")
+
+    let saved = try #require(model.layouts.first)
+    #expect(model.page == .layout(saved.id))
+}
+
+@Test @MainActor func applyingWhileGeneralIsShownLeavesGeneralAlone() async throws {
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")])
+    let layout = try #require(model.layouts.first)
+    model.page = .general
+
+    await model.apply(id: layout.id)
+
+    #expect(model.page == .general)
+    #expect(model.activeLayoutID == layout.id)
+}
+
+@Test @MainActor func applyingWhileALayoutIsShownShowsTheAppliedOne() async throws {
+    let (model, _, _) = try makeModel(layouts: [
+        testLayout("Work", order: 0),
+        testLayout("Focus", order: 1)
+    ])
+    let first = try #require(model.layouts.first)
+    let second = try #require(model.layouts.last)
+    model.page = .layout(first.id)
+
+    await model.apply(id: second.id)
+
+    #expect(model.page == .layout(second.id))
+}
+
+@Test @MainActor func reloadingKeepsGeneralOpen() throws {
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")])
+    model.page = .general
+
+    model.reload()
+
+    #expect(model.page == .general)
+}
+
+@Test @MainActor func loadingWithNothingShownShowsTheFirstLayout() throws {
+    let (model, _, _) = try makeModel(layouts: [
+        testLayout("Work", order: 0),
+        testLayout("Focus", order: 1)
+    ])
+    let first = try #require(model.layouts.first)
+
+    #expect(model.page == .layout(first.id))
+}
+
+@Test @MainActor func deletingTheShownLayoutShowsTheFirstRemainingOne() throws {
+    let (model, _, _) = try makeModel(layouts: [
+        testLayout("Work", order: 0),
+        testLayout("Focus", order: 1)
+    ])
+    let first = try #require(model.layouts.first)
+    let second = try #require(model.layouts.last)
+    model.page = .layout(second.id)
+
+    model.delete(id: second.id)
+
+    #expect(model.page == .layout(first.id))
+}
+
+@Test @MainActor func deletingAnotherLayoutLeavesTheShownOneAlone() throws {
+    let (model, _, _) = try makeModel(layouts: [
+        testLayout("A", order: 0),
+        testLayout("B", order: 1),
+        testLayout("C", order: 2)
+    ])
+    let first = try #require(model.layouts.first)
+    let third = try #require(model.layouts.last)
+    model.page = .layout(third.id)
+
+    model.delete(id: first.id)
+
+    #expect(model.page == .layout(third.id))
+}
+
+@Test @MainActor func deleteAlertDoesNotAppearWhileGeneralIsShown() throws {
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")])
+    model.page = .general
+
+    model.askDelete()
+
+    #expect(model.alert == nil)
 }

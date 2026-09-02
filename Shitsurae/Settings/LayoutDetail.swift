@@ -118,7 +118,7 @@ struct LayoutDetail: View {
 
     private var hotkeyPill: some View {
         Button {
-            model.selectedLayoutID = layout.id
+            model.page = .layout(layout.id)
             model.shortcuts.start(layout.id)
         } label: {
             Text(model.shortcuts.label(for: layout.id) ?? "Record")

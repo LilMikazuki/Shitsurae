@@ -2,26 +2,15 @@ import AppKit
 import ShitsuraeKit
 import SwiftUI
 
-@Observable
-final class SettingsPage {
-    enum Page: Hashable {
-        case layout(UUID)
-        case general
-    }
-
-    var showingGeneral = false
-}
-
 struct SettingsWindow: View {
     let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
 
     @Environment(\.controlActiveState) private var activeState
     @State private var icons = AppIconLoader()
-    @State private var page = SettingsPage()
 
     var body: some View {
-        SplitLayout(model: model, launchAtLogin: launchAtLogin, icons: icons, page: page)
+        SplitLayout(model: model, launchAtLogin: launchAtLogin, icons: icons)
             .ignoresSafeArea()
             .frame(minWidth: 716, minHeight: 486)
             .background(WindowChrome())
@@ -39,24 +28,18 @@ private struct SplitLayout: NSViewControllerRepresentable {
     let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
     let icons: AppIconLoader
-    let page: SettingsPage
 
     func makeNSViewController(context _: Context) -> NSSplitViewController {
         let controller = NSSplitViewController()
 
-        let sidebar = NSHostingController(rootView: SidebarPane(model: model, page: page))
+        let sidebar = NSHostingController(rootView: SidebarPane(model: model))
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         sidebarItem.minimumThickness = 210
         sidebarItem.maximumThickness = 300
         controller.addSplitViewItem(sidebarItem)
 
         let detail = NSHostingController(
-            rootView: DetailPane(
-                model: model,
-                launchAtLogin: launchAtLogin,
-                icons: icons,
-                page: page
-            )
+            rootView: DetailPane(model: model, launchAtLogin: launchAtLogin, icons: icons)
         )
         // The column reserves 66pt under the title bar and its empty toolbar. Nothing is drawn
         // there, so the pages take that space back and set their own top inset.
@@ -71,10 +54,9 @@ private struct SplitLayout: NSViewControllerRepresentable {
 
 private struct SidebarPane: View {
     let model: AppModel
-    let page: SettingsPage
 
     var body: some View {
-        LayoutSidebar(model: model, page: page)
+        LayoutSidebar(model: model)
             .scrollEdgeEffectHidden(true, for: .top)
     }
 }
@@ -83,11 +65,10 @@ private struct DetailPane: View {
     let model: AppModel
     let launchAtLogin: any LaunchAtLoginControlling
     let icons: AppIconLoader
-    let page: SettingsPage
 
     var body: some View {
         Group {
-            if page.showingGeneral {
+            if model.page == .general {
                 GeneralTab(launchAtLogin: launchAtLogin)
             } else if let layout = model.selectedLayout {
                 LayoutDetail(model: model, layout: layout, icons: icons)

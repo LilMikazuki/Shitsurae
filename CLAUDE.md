@@ -119,6 +119,14 @@ review lived there. Two rules, both mechanically enforced by
   saves the layout without going through `mutate`, so toggling it leaves the
   active mark alone: the Dock still holds that layout. Pinned by
   `turningAutoQuitOnKeepsTheActiveLayoutActive`.
+- **The settings window shows what `AppModel.page` says, and nothing else.**
+  `.layout(id)` or `.general`, `nil` for neither; `selectedLayout` is derived
+  from it. Saving moves the page, applying moves it only when a layout page is
+  already shown, because applying is reachable from a global hotkey and an
+  action outside the window must not move the window. Pinned by
+  `savingWhileGeneralIsShownShowsTheNewLayout`,
+  `applyingWhileGeneralIsShownLeavesGeneralAlone` and
+  `applyingWhileALayoutIsShownShowsTheAppliedOne`.
 - **State kept outside the model is invisible to SwiftUI.** `activeLayoutID` is
   a stored property written only by `setActiveLayout`, which writes through to
   the one `ActiveLayoutMarker` the model owns. Turning it into a computed

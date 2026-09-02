@@ -3,7 +3,6 @@ import SwiftUI
 
 struct LayoutSidebar: View {
     let model: AppModel
-    let page: SettingsPage
     @Environment(\.openWindow) private var openWindow
 
     @State private var editingID: UUID?
@@ -14,31 +13,19 @@ struct LayoutSidebar: View {
     var body: some View {
         list
             .safeAreaBar(edge: .bottom) { footer }
-            .onChange(of: model.selectedLayoutID) { _, _ in
-                if let editingID, editingID != model.selectedLayoutID {
+            .onChange(of: model.page) { _, new in
+                if let editingID, new != .layout(editingID) {
                     commitRename()
                 }
             }
     }
 
-    private var selection: Binding<SettingsPage.Page?> {
+    private var selection: Binding<SettingsPage?> {
         Binding(
-            get: {
-                if page.showingGeneral {
-                    return .general
-                }
-                return model.selectedLayoutID.map { .layout($0) }
-            },
+            get: { model.page },
             set: { new in
-                switch new {
-                case .general:
-                    page.showingGeneral = true
-                case let .layout(id):
-                    page.showingGeneral = false
-                    model.selectedLayoutID = id
-                case nil:
-                    break
-                }
+                guard let new else { return }
+                model.page = new
             }
         )
     }
@@ -51,7 +38,7 @@ struct LayoutSidebar: View {
                 Section {
                     ForEach(model.layouts) { layout in
                         row(layout)
-                            .tag(SettingsPage.Page.layout(layout.id))
+                            .tag(SettingsPage.layout(layout.id))
                             .renameAction { startRename(layout) }
                     }
                 }
@@ -67,11 +54,11 @@ struct LayoutSidebar: View {
 
             Section {
                 Label("General", systemImage: "gearshape")
-                    .tag(SettingsPage.Page.general)
+                    .tag(SettingsPage.general)
             }
         }
         .listStyle(.sidebar)
-        .contextMenu(forSelectionType: SettingsPage.Page.self) { pages in
+        .contextMenu(forSelectionType: SettingsPage.self) { pages in
             layoutMenu(for: pages.first)
         }
         .onKeyPress(.return) {
@@ -82,9 +69,9 @@ struct LayoutSidebar: View {
     }
 
     @ViewBuilder
-    private func layoutMenu(for selected: SettingsPage.Page?) -> some View {
+    private func layoutMenu(for selected: SettingsPage?) -> some View {
         if case let .layout(id) = selected,
-           let layout = model.layouts.first(where: { $0.id == id })
+           model.layouts.contains(where: { $0.id == id })
         {
             Button("Apply") {
                 Task {
@@ -98,7 +85,7 @@ struct LayoutSidebar: View {
             Divider()
 
             Button("Delete", role: .destructive) {
-                model.selectedLayoutID = layout.id
+                model.page = .layout(id)
                 model.askDelete()
             }
         }
@@ -189,7 +176,7 @@ struct LayoutSidebar: View {
     }
 
     private func startRename(_ layout: DockLayout) {
-        model.selectedLayoutID = layout.id
+        model.page = .layout(layout.id)
         editValue = layout.name
         editingID = layout.id
         renameProblem = nil

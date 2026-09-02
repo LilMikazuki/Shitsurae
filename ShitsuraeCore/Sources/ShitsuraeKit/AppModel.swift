@@ -31,6 +31,11 @@ public enum ShitsuraeFailure: Equatable, Sendable {
     }
 }
 
+public enum SettingsPage: Hashable, Sendable {
+    case layout(UUID)
+    case general
+}
+
 public enum ShitsuraeAlertKind: Equatable, Sendable {
     case saveFailed
     case delete(id: UUID, name: String)
@@ -41,13 +46,13 @@ public enum ShitsuraeAlertKind: Equatable, Sendable {
 @Observable
 public final class AppModel {
     public private(set) var layouts: [DockLayout] = []
-    private var selectedLayoutIDMirror: UUID?
+    private var pageMirror: SettingsPage?
 
-    public var selectedLayoutID: UUID? {
-        get { selectedLayoutIDMirror }
+    public var page: SettingsPage? {
+        get { pageMirror }
         set {
-            selectedLayoutIDMirror = newValue
-            if let recording = shortcuts.recordingID, recording != newValue {
+            pageMirror = newValue
+            if let recording = shortcuts.recordingID, newValue != .layout(recording) {
                 shortcuts.stop()
             }
         }
@@ -76,8 +81,9 @@ public final class AppModel {
         activeLayoutID = marker.id
     }
 
-    /// Mirrors rather than service lookups: the services keep this state in
-    /// `UserDefaults` and on disk, where observation cannot see it.
+    /// A stored property, written only by `setActiveLayout`, which writes through
+    /// to the marker. A computed property over `UserDefaults` would be invisible
+    /// to observation and every view reading it would stop updating.
     public private(set) var activeLayoutID: UUID?
 
     public private(set) var unreadableFiles: [String] = []
@@ -97,7 +103,8 @@ public final class AppModel {
     }
 
     public var selectedLayout: DockLayout? {
-        layouts.first { $0.id == selectedLayoutID }
+        guard case let .layout(id) = page else { return nil }
+        return layouts.first { $0.id == id }
     }
 
     public func reload() {
@@ -113,8 +120,13 @@ public final class AppModel {
     }
 
     private func listDidChange() {
-        if selectedLayout == nil {
-            selectedLayoutID = layouts.first?.id
+        switch page {
+        case let .layout(id) where layouts.contains(where: { $0.id == id }):
+            break
+        case .general:
+            break
+        default:
+            page = layouts.first.map { .layout($0.id) }
         }
         shortcuts.register(layouts.map(\.id))
     }
@@ -154,7 +166,9 @@ public final class AppModel {
             if snapshot.quitsOtherApps {
                 quitOthers(for: snapshot)
             }
-            selectedLayoutID = id
+            if case .layout = page {
+                page = .layout(id)
+            }
             if var fresh = layouts.first(where: { $0.id == id }),
                fresh.dockState == snapshot.dockState
             {
@@ -201,7 +215,7 @@ public final class AppModel {
         }
         layouts.append(layout)
         listDidChange()
-        selectedLayoutID = layout.id
+        page = .layout(layout.id)
     }
 
     public func seedInitialLayoutIfNeeded() {
@@ -221,7 +235,7 @@ public final class AppModel {
     }
 
     public func deleteSelected() {
-        guard let id = selectedLayoutID else { return }
+        guard let id = selectedLayout?.id else { return }
         delete(id: id)
     }
 
@@ -236,7 +250,6 @@ public final class AppModel {
         if activeLayoutID == id {
             setActiveLayout(nil)
         }
-        selectedLayoutID = nil
         listDidChange()
     }
 

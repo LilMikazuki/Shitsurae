@@ -26,7 +26,7 @@ private func makeModelWithLayout(_ paths: [String]) throws -> (AppModel, DockLay
         marker: ActiveLayoutMarker(defaults: defaults)
     )
     model.reload()
-    model.selectedLayoutID = layout.id
+    model.page = .layout(layout.id)
     return (model, layout)
 }
 
