@@ -6,8 +6,8 @@ import ShitsuraeCore
 final class FakeDockEngine: DockApplying, @unchecked Sendable {
     private let lock = NSLock()
     private nonisolated(unsafe) var _stateToReturn = DockState(apps: [], settings: DockSettings())
-    private nonisolated(unsafe) var _readError: Error?
-    private nonisolated(unsafe) var _applyError: Error?
+    private nonisolated(unsafe) var _readError: DockError?
+    private nonisolated(unsafe) var _applyError: DockError?
     private nonisolated(unsafe) var _readCount = 0
     private nonisolated(unsafe) var _applied: [DockState] = []
 
@@ -16,12 +16,12 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
         set { lock.withLock { _stateToReturn = newValue } }
     }
 
-    var readError: Error? {
+    var readError: DockError? {
         get { lock.withLock { _readError } }
         set { lock.withLock { _readError = newValue } }
     }
 
-    var applyError: Error? {
+    var applyError: DockError? {
         get { lock.withLock { _applyError } }
         set { lock.withLock { _applyError = newValue } }
     }
@@ -34,8 +34,8 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
         lock.withLock { _applied }
     }
 
-    func read() throws -> DockState {
-        let thrown: Error? = lock.withLock {
+    func read() throws(DockError) -> DockState {
+        let thrown: DockError? = lock.withLock {
             _readCount += 1
             return _readError
         }
@@ -45,8 +45,8 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
         return stateToReturn
     }
 
-    func apply(_ state: DockState) throws {
-        let thrown: Error? = lock.withLock {
+    func apply(_ state: DockState) throws(DockError) {
+        let thrown: DockError? = lock.withLock {
             if let _applyError {
                 return _applyError
             }
@@ -59,7 +59,7 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
         let current = try read()
         guard state != current else { return false }
         try apply(state)

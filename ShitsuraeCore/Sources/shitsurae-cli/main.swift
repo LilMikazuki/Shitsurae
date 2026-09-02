@@ -61,7 +61,7 @@ case let .apply(file, dryRun):
             try DockEngine.live().apply(state)
             print("Applied. The Dock will pick it up.")
         }
-    } catch let error as DockRestartError {
+    } catch let DockError.restart(error) {
         fail("""
         The Dock layout was written, but the Dock did not restart: \(error)
         Run `killall Dock` to finish applying it.

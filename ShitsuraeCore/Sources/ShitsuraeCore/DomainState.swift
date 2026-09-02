@@ -30,3 +30,13 @@ public extension DockRestartError {
         }
     }
 }
+
+public extension DockError {
+    var domainState: DomainState {
+        switch self {
+        case let .read(error): error.domainState
+        case let .write(error): error.domainState
+        case let .restart(error): error.domainState
+        }
+    }
+}

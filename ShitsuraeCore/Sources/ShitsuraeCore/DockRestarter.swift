@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 public protocol DockRestarting: Sendable {
-    func restart() throws
+    func restart() throws(DockRestartError)
 }
 
 public enum DockRestartError: Error, Equatable {
@@ -51,7 +51,7 @@ public final class DockRestarter: DockRestarting {
         self.pollInterval = pollInterval
     }
 
-    public func restart() throws {
+    public func restart() throws(DockRestartError) {
         // No Dock running means nothing to restart: the next Dock to start reads
         // the domain that was just written.
         let asked = processes()

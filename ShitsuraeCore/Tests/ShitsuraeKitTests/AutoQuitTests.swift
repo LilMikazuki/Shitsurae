@@ -91,7 +91,7 @@ private func makeModel(
     let (_, store) = temporaryStore()
     try store.save(layout("Work", order: 0, apps: ["a.app"], quitsOtherApps: true))
     let engine = FakeDockEngine()
-    engine.applyError = DockWriteError.synchronizeFailed
+    engine.applyError = .write(.synchronizeFailed)
     let model = makeModel(store: store, quitter: quitter, engine: engine)
 
     try await model.apply(id: #require(model.layouts.first).id)

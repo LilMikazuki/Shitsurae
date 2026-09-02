@@ -59,7 +59,7 @@ private let everyFailure: [ShitsuraeFailure] = [
 }
 
 @Test func everyReasonThrownAfterTheDomainIsWrittenAdmitsIt() {
-    let error = DockRestartError.terminateRefused
+    let error = DockError.restart(.terminateRefused)
     let admitsTheChange = if case .writtenButNotApplied = ShitsuraeFailure(from: error) {
         true
     } else {

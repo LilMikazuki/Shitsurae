@@ -16,7 +16,7 @@ private final class FakeRestarter: DockRestarting {
         set { lock.withLock { _errorToThrow = newValue } }
     }
 
-    func restart() throws {
+    func restart() throws(DockRestartError) {
         lock.withLock { _restarts += 1 }
         if let error = errorToThrow {
             throw error
@@ -66,7 +66,7 @@ private final class NonSynchronizingStore: DockPreferenceStore {
     let restarter = FakeRestarter()
     let engine = DockEngine(store: store, restarter: restarter)
 
-    #expect(throws: DockReadError.self) {
+    #expect(throws: DockError.read(.wrongType(key: DockKey.tilesize, expected: "Number"))) {
         try engine.apply(DockState(apps: [], settings: DockSettings()))
     }
     #expect(store.value(forKey: DockKey.apps) == nil)
@@ -78,7 +78,7 @@ private final class NonSynchronizingStore: DockPreferenceStore {
     let restarter = FakeRestarter()
     let engine = DockEngine(store: store, restarter: restarter)
 
-    #expect(throws: DockWriteError.synchronizeFailed) {
+    #expect(throws: DockError.write(.synchronizeFailed)) {
         try engine.apply(DockState(apps: [], settings: DockSettings()))
     }
     #expect(restarter.restarts == 0)
@@ -97,7 +97,7 @@ private final class NonSynchronizingStore: DockPreferenceStore {
         label: "Safari"
     )]
 
-    #expect(throws: DockRestartError.self) {
+    #expect(throws: DockError.restart(.terminateRefused)) {
         try engine.apply(target)
     }
 
@@ -112,7 +112,7 @@ private final class NonSynchronizingStore: DockPreferenceStore {
         restarter: restarter
     )
 
-    #expect(throws: DockRestartError.terminateRefused) {
+    #expect(throws: DockError.restart(.terminateRefused)) {
         try engine.apply(engine.read())
     }
     #expect(restarter.restarts == 1)

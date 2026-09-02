@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 private final class SilentRestarter: DockRestarting {
-    func restart() throws {}
+    func restart() throws(DockRestartError) {}
 }
 
 private func previewEngine(_ store: DockPreferenceStore) -> DockEngine {
@@ -52,7 +52,7 @@ private func previewEngine(_ store: DockPreferenceStore) -> DockEngine {
 @Test func previewFailsOnAnUnreadableDomain() throws {
     let engine = previewEngine(InMemoryDockStore([DockKey.tilesize: "large"]))
 
-    #expect(throws: DockReadError.self) {
+    #expect(throws: DockError.read(.wrongType(key: DockKey.tilesize, expected: "Number"))) {
         try engine.preview(DockState(apps: [], settings: DockSettings()))
     }
 }

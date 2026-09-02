@@ -95,7 +95,7 @@ private func removeDomain(_ domain: String) {
 
 @Test @MainActor func aReadErrorWhileSavingRaisesAnAlert() throws {
     let engine = FakeDockEngine()
-    engine.readError = DockReadError.wrongType(key: "persistent-apps", expected: "Array")
+    engine.readError = .read(.wrongType(key: "persistent-apps", expected: "Array"))
     let (model, _, _) = try makeModel(engine: engine)
 
     #expect(throws: (any Error).self) {
@@ -107,7 +107,7 @@ private func removeDomain(_ domain: String) {
 
 @Test @MainActor func aDockSeparatorIsNotReportedAsAFormatChange() throws {
     let engine = FakeDockEngine()
-    engine.readError = DockReadError.unsupportedTileType(index: 3, tileType: "spacer-tile")
+    engine.readError = .read(.unsupportedTileType(index: 3, tileType: "spacer-tile"))
     let (model, _, _) = try makeModel(engine: engine)
 
     #expect(throws: (any Error).self) {
@@ -118,7 +118,7 @@ private func removeDomain(_ domain: String) {
 
 @Test @MainActor func aRestartFailureIsNotReportedAsAReadError() async throws {
     let engine = FakeDockEngine()
-    engine.applyError = DockRestartError.terminateRefused
+    engine.applyError = .restart(.terminateRefused)
     let (model, _, _) = try makeModel(engine: engine, layouts: [testLayout("Work", order: 0)])
     let id = try #require(model.layouts.first?.id)
 
@@ -129,7 +129,7 @@ private func removeDomain(_ domain: String) {
 
 @Test @MainActor func aRestartFailureDoesNotSetTheActiveMark() async throws {
     let engine = FakeDockEngine()
-    engine.applyError = DockRestartError.terminateRefused
+    engine.applyError = .restart(.terminateRefused)
     let (model, _, _) = try makeModel(engine: engine, layouts: [testLayout("Work", order: 0)])
     let id = try #require(model.layouts.first?.id)
 
@@ -150,32 +150,27 @@ private func removeDomain(_ domain: String) {
     await model.apply(id: work.id)
     #expect(model.activeLayoutID == work.id)
 
-    engine.applyError = DockRestartError.terminateRefused
+    engine.applyError = .restart(.terminateRefused)
     await model.apply(id: focus.id)
 
     #expect(model.alert == .failure(.writtenButNotApplied))
     #expect(model.activeLayoutID == work.id)
 }
 
-@Test func anUnknownErrorCountsAsAnUnreadableLayout() {
-    struct Foreign: Error {}
-    #expect(ShitsuraeFailure(from: Foreign()) == .unreadableLayout)
-}
-
 @Test func everyFailureReasonIsDistinguishable() {
-    let pairs: [(error: any Error, expected: ShitsuraeFailure)] = [
-        (DockReadError.wrongType(key: "tilesize", expected: "Number"), .unreadableLayout),
-        (DockReadError.malformedTile(index: 0, reason: "missing path"), .unreadableLayout),
+    let pairs: [(error: DockError, expected: ShitsuraeFailure)] = [
+        (.read(.wrongType(key: "tilesize", expected: "Number")), .unreadableLayout),
+        (.read(.malformedTile(index: 0, reason: "missing path")), .unreadableLayout),
         (
-            DockReadError.unsupportedValue(key: "orientation", value: "diagonal"),
+            .read(.unsupportedValue(key: "orientation", value: "diagonal")),
             .unsupportedSetting(key: "orientation", value: "diagonal")
         ),
         (
-            DockReadError.unsupportedTileType(index: 3, tileType: "spacer-tile"),
+            .read(.unsupportedTileType(index: 3, tileType: "spacer-tile")),
             .unsupportedTile("spacer-tile")
         ),
-        (DockWriteError.synchronizeFailed, .writeFailed),
-        (DockRestartError.terminateRefused, .writtenButNotApplied)
+        (.write(.synchronizeFailed), .writeFailed),
+        (.restart(.terminateRefused), .writtenButNotApplied)
     ]
 
     for (error, expected) in pairs {
@@ -444,7 +439,7 @@ private final class Flag: @unchecked Sendable {
 
 @Test @MainActor func aDockThatCannotBeReadSeedsNothingAndRaisesNoAlert() throws {
     let engine = FakeDockEngine()
-    engine.readError = DockReadError.wrongType(key: "persistent-apps", expected: "Array")
+    engine.readError = .read(.wrongType(key: "persistent-apps", expected: "Array"))
     let (model, _, _) = try makeModel(engine: engine)
 
     model.seedInitialLayoutIfNeeded()

@@ -7,7 +7,7 @@ struct DockReader {
         self.store = store
     }
 
-    func read() throws -> DockState {
+    func read() throws(DockReadError) -> DockState {
         var settings = DockSettings()
         settings.tilesize = try number(DockKey.tilesize)
         settings.largesize = try number(DockKey.largesize)
@@ -18,7 +18,7 @@ struct DockReader {
         return try DockState(apps: apps(), settings: settings)
     }
 
-    private func number(_ key: String) throws -> Double? {
+    private func number(_ key: String) throws(DockReadError) -> Double? {
         guard let raw = store.value(forKey: key) else { return nil }
         guard !isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Number")
@@ -26,7 +26,7 @@ struct DockReader {
         return value.doubleValue
     }
 
-    private func bool(_ key: String) throws -> Bool? {
+    private func bool(_ key: String) throws(DockReadError) -> Bool? {
         guard let raw = store.value(forKey: key) else { return nil }
         guard isCFBoolean(raw), let value = raw as? NSNumber else {
             throw DockReadError.wrongType(key: key, expected: "Bool")
@@ -38,7 +38,7 @@ struct DockReader {
         CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
     }
 
-    private func orientation() throws -> DockOrientation? {
+    private func orientation() throws(DockReadError) -> DockOrientation? {
         guard let raw = store.value(forKey: DockKey.orientation) else { return nil }
         guard let string = raw as? String else {
             throw DockReadError.wrongType(key: DockKey.orientation, expected: "String")
@@ -49,18 +49,22 @@ struct DockReader {
         return value
     }
 
-    private func apps() throws -> [DockApp] {
+    private func apps() throws(DockReadError) -> [DockApp] {
         guard let raw = store.value(forKey: DockKey.apps) else { return [] }
         guard let rawTiles = raw as? [Any] else {
             throw DockReadError.wrongType(key: DockKey.apps, expected: "Array")
         }
-        let tiles: [[String: Any]] = try rawTiles.enumerated().map { index, element in
-            guard let tile = element as? [String: Any] else {
-                throw DockReadError.malformedTile(index: index, reason: "tile is not a dictionary")
+        let tiles: [[String: Any]] = try rawTiles.enumerated()
+            .map { index, element throws(DockReadError) in
+                guard let tile = element as? [String: Any] else {
+                    throw DockReadError.malformedTile(
+                        index: index,
+                        reason: "tile is not a dictionary"
+                    )
+                }
+                return tile
             }
-            return tile
-        }
-        return try tiles.enumerated().map { index, tile in
+        return try tiles.enumerated().map { index, tile throws(DockReadError) in
             guard let tileType = tile["tile-type"] as? String else {
                 throw DockReadError.malformedTile(index: index, reason: "missing tile-type")
             }

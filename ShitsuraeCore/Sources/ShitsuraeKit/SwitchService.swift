@@ -15,19 +15,19 @@ public final class SwitchService: Sendable {
         set { marker.id = newValue }
     }
 
-    public func apply(_ layout: DockLayout) throws {
+    public func apply(_ layout: DockLayout) throws(DockError) {
         try engine.apply(layout.dockState(skippingMissing: .default))
         lastAppliedLayoutID = layout.id
     }
 
     @discardableResult
-    public func applyIfNeeded(_ layout: DockLayout) throws -> Bool {
+    public func applyIfNeeded(_ layout: DockLayout) throws(DockError) -> Bool {
         let wrote = try engine.applyIfNeeded(layout.dockState(skippingMissing: .default))
         lastAppliedLayoutID = layout.id
         return wrote
     }
 
-    public func readCurrentState() throws -> DockState {
+    public func readCurrentState() throws(DockError) -> DockState {
         try engine.read()
     }
 }

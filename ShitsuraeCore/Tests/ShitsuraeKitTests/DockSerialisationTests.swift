@@ -12,11 +12,11 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
         lock.withLock { peak }
     }
 
-    func read() throws -> DockState {
+    func read() throws(DockError) -> DockState {
         DockState(apps: [], settings: DockSettings())
     }
 
-    func apply(_: DockState) throws {
+    func apply(_: DockState) throws(DockError) {
         lock.withLock {
             inFlight += 1
             peak = max(peak, inFlight)
@@ -26,7 +26,7 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
         let current = try read()
         guard state != current else { return false }
         try apply(state)
@@ -64,7 +64,7 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
     try store.saveAll([testLayout("Work", order: 0)])
     let defaults = temporaryDefaults()
     let engine = FakeDockEngine()
-    engine.applyError = DockWriteError.synchronizeFailed
+    engine.applyError = .write(.synchronizeFailed)
     let model = AppModel(
         store: store,
         switcher: SwitchService(engine: engine, defaults: defaults),
@@ -90,17 +90,17 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
         }
     }
 
-    func read() throws -> DockState {
+    func read() throws(DockError) -> DockState {
         DockState(apps: [], settings: DockSettings())
     }
 
-    func apply(_: DockState) throws {
+    func apply(_: DockState) throws(DockError) {
         enteredGate.signal()
         release.wait()
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
         try apply(state)
         return true
     }

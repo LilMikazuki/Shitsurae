@@ -23,12 +23,11 @@ import Testing
 }
 
 @Test func aFailedApplyDoesNotRememberTheLayout() {
-    struct Broken: Error {}
     let engine = FakeDockEngine()
-    engine.applyError = Broken()
+    engine.applyError = .write(.synchronizeFailed)
     let service = SwitchService(engine: engine, defaults: temporaryDefaults())
 
-    #expect(throws: Broken.self) {
+    #expect(throws: DockError.write(.synchronizeFailed)) {
         try service.apply(testLayout())
     }
     #expect(service.lastAppliedLayoutID == nil)

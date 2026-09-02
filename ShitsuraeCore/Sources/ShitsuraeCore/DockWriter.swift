@@ -7,7 +7,7 @@ struct DockWriter {
         self.store = store
     }
 
-    func write(_ state: DockState) throws {
+    func write(_ state: DockState) throws(DockWriteError) {
         store.setValue(state.apps.map(Self.tile(for:)), forKey: DockKey.apps)
         set(state.settings.tilesize, DockKey.tilesize)
         set(state.settings.largesize, DockKey.largesize)

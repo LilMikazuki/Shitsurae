@@ -13,11 +13,11 @@ public struct DockEngine: Sendable {
         DockEngine(store: CFPreferencesDockStore(), restarter: DockRestarter())
     }
 
-    public func read() throws -> DockState {
-        try DockReader(store: store).read()
+    public func read() throws(DockError) -> DockState {
+        try read(from: store)
     }
 
-    public func preview(_ state: DockState) throws -> DockState {
+    public func preview(_ state: DockState) throws(DockError) -> DockState {
         _ = try read()
 
         var seed: [String: Any] = [:]
@@ -27,22 +27,46 @@ public struct DockEngine: Sendable {
             }
         }
         let sandbox = InMemoryDockStore(seed)
-        try DockWriter(store: sandbox).write(state)
-        return try DockReader(store: sandbox).read()
+        try write(state, to: sandbox)
+        return try read(from: sandbox)
     }
 
-    public func apply(_ state: DockState) throws {
+    public func apply(_ state: DockState) throws(DockError) {
         _ = try read()
-        try DockWriter(store: store).write(state)
-        try restarter.restart()
+        try write(state, to: store)
+        try restart()
     }
 
     @discardableResult
-    public func applyIfNeeded(_ state: DockState) throws -> Bool {
+    public func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
         let current = try read()
         guard try preview(state) != current else { return false }
-        try DockWriter(store: store).write(state)
-        try restarter.restart()
+        try write(state, to: store)
+        try restart()
         return true
+    }
+
+    private func read(from store: DockPreferenceStore) throws(DockError) -> DockState {
+        do {
+            return try DockReader(store: store).read()
+        } catch {
+            throw .read(error)
+        }
+    }
+
+    private func write(_ state: DockState, to store: DockPreferenceStore) throws(DockError) {
+        do {
+            try DockWriter(store: store).write(state)
+        } catch {
+            throw .write(error)
+        }
+    }
+
+    private func restart() throws(DockError) {
+        do {
+            try restarter.restart()
+        } catch {
+            throw .restart(error)
+        }
     }
 }

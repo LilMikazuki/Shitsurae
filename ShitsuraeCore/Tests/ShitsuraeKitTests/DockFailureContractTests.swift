@@ -4,21 +4,24 @@ import ShitsuraeCore
 import Testing
 
 private struct ThrowSite {
-    let error: any Error
+    let error: DockError
     let state: DomainState
     let site: String
 }
 
 private func throwSite(_ error: DockReadError, _ where_: String) -> ThrowSite {
-    ThrowSite(error: error, state: error.domainState, site: where_)
+    let wrapped = DockError.read(error)
+    return ThrowSite(error: wrapped, state: wrapped.domainState, site: where_)
 }
 
 private func throwSite(_ error: DockWriteError, _ where_: String) -> ThrowSite {
-    ThrowSite(error: error, state: error.domainState, site: where_)
+    let wrapped = DockError.write(error)
+    return ThrowSite(error: wrapped, state: wrapped.domainState, site: where_)
 }
 
 private func throwSite(_ error: DockRestartError, _ where_: String) -> ThrowSite {
-    ThrowSite(error: error, state: error.domainState, site: where_)
+    let wrapped = DockError.restart(error)
+    return ThrowSite(error: wrapped, state: wrapped.domainState, site: where_)
 }
 
 /// Each family below is enumerated twice: once as a `CaseIterable` mirror that
@@ -26,7 +29,8 @@ private func throwSite(_ error: DockRestartError, _ where_: String) -> ThrowSite
 /// error to that mirror. Adding an error case breaks the switch; adding a mirror
 /// case breaks the sample. Neither compiles until the table has grown, which is
 /// the whole point — a list that only sits beside an exhaustive switch can, and
-/// did, fall behind it.
+/// did, fall behind it. `DockError` itself is mirrored the same way, so a fourth
+/// family cannot be added without the table growing with it.
 private protocol FailureFamily: CaseIterable, Equatable {
     var site: ThrowSite { get }
 }
@@ -98,10 +102,27 @@ private func family(of error: DockRestartError) -> RestartFailure {
     }
 }
 
-private let throwSites: [ThrowSite] =
-    ReadFailure.allCases.map(\.site)
-        + WriteFailure.allCases.map(\.site)
-        + RestartFailure.allCases.map(\.site)
+private enum EngineFailure: CaseIterable {
+    case read, write, restart
+
+    var sites: [ThrowSite] {
+        switch self {
+        case .read: ReadFailure.allCases.map(\.site)
+        case .write: WriteFailure.allCases.map(\.site)
+        case .restart: RestartFailure.allCases.map(\.site)
+        }
+    }
+}
+
+private func family(of error: DockError) -> EngineFailure {
+    switch error {
+    case .read: .read
+    case .write: .write
+    case .restart: .restart
+    }
+}
+
+private let throwSites: [ThrowSite] = EngineFailure.allCases.flatMap(\.sites)
 
 private func shown(_ failure: ShitsuraeFailure) -> String {
     (failure.title + " " + failure.message).lowercased()
@@ -142,14 +163,42 @@ private func deniesAnyChange(_ text: String) -> Bool {
     }
 }
 
-@Test func everySampleBelongsToTheCaseThatSuppliedIt() throws {
+@Test func everySampleBelongsToTheCaseThatSuppliedIt() {
     for kind in ReadFailure.allCases {
-        #expect(try family(of: #require(kind.site.error as? DockReadError)) == kind)
+        guard case let .read(error) = kind.site.error else {
+            Issue.record("\(kind) supplied a sample from another family")
+            continue
+        }
+        #expect(family(of: error) == kind)
+        #expect(family(of: kind.site.error) == .read)
     }
     for kind in WriteFailure.allCases {
-        #expect(try family(of: #require(kind.site.error as? DockWriteError)) == kind)
+        guard case let .write(error) = kind.site.error else {
+            Issue.record("\(kind) supplied a sample from another family")
+            continue
+        }
+        #expect(family(of: error) == kind)
+        #expect(family(of: kind.site.error) == .write)
     }
     for kind in RestartFailure.allCases {
-        #expect(try family(of: #require(kind.site.error as? DockRestartError)) == kind)
+        guard case let .restart(error) = kind.site.error else {
+            Issue.record("\(kind) supplied a sample from another family")
+            continue
+        }
+        #expect(family(of: error) == kind)
+        #expect(family(of: kind.site.error) == .restart)
+    }
+}
+
+@Test func theEngineErrorReportsTheDomainStateOfItsCause() {
+    for site in throwSites {
+        switch site.error {
+        case let .read(cause):
+            #expect(site.error.domainState == cause.domainState, "\(site.site)")
+        case let .write(cause):
+            #expect(site.error.domainState == cause.domainState, "\(site.site)")
+        case let .restart(cause):
+            #expect(site.error.domainState == cause.domainState, "\(site.site)")
+        }
     }
 }

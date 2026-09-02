@@ -12,9 +12,9 @@ public enum ShitsuraeFailure: Equatable, Sendable {
     case writeFailed
     case writtenButNotApplied
 
-    public init(from error: Error) {
+    public init(from error: DockError) {
         switch error {
-        case let error as DockReadError:
+        case let .read(error):
             switch error {
             case let .unsupportedTileType(_, tileType):
                 self = .unsupportedTile(tileType)
@@ -23,12 +23,10 @@ public enum ShitsuraeFailure: Equatable, Sendable {
             case .wrongType, .malformedTile:
                 self = .unreadableLayout
             }
-        case is DockWriteError:
+        case .write:
             self = .writeFailed
-        case is DockRestartError:
+        case .restart:
             self = .writtenButNotApplied
-        default:
-            self = .unreadableLayout
         }
     }
 }
@@ -134,7 +132,7 @@ public final class AppModel {
         // mark and the retry takes the normal writing path.
         let reapplying = id == activeLayoutID
         do {
-            try await offMainThread {
+            try await offMainThread { () throws(DockError) in
                 if reapplying {
                     try switcher.applyIfNeeded(snapshot)
                 } else {
@@ -388,15 +386,16 @@ public final class AppModel {
     }
 }
 
-/// `defaults` runs as a subprocess and the Dock restart waits on it, so this
-/// work blocks its thread outright. The cooperative pool has one thread per
-/// core and must not be one of them.
-private func offMainThread<T: Sendable>(_ work: @escaping @Sendable () throws -> T) async throws
-    -> T
-{
-    try await withCheckedThrowingContinuation { continuation in
+/// Restarting the Dock waits for the old process to go, so this work blocks its
+/// thread outright. The cooperative pool has one thread per core and must not be
+/// one of them.
+private func offMainThread<T: Sendable>(
+    _ work: @escaping @Sendable () throws(DockError) -> T
+) async throws(DockError) -> T {
+    let result: Result<T, DockError> = await withCheckedContinuation { continuation in
         DispatchQueue.global(qos: .userInitiated).async {
-            continuation.resume(with: Result { try work() })
+            continuation.resume(returning: Result(catching: work))
         }
     }
+    return try result.get()
 }
