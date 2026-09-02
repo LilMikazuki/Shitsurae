@@ -130,6 +130,9 @@ one on screen. Turn it off again when you are done testing.
       behind it fades, and the edge you have reached does not.
 - [ ] Applying a layout whose app was deleted from disk leaves that tile out of
       the Dock rather than putting a question mark there.
+- [ ] Two applications that share a bundle identifier — `Google Chrome.app` and
+      `Google Chrome 2.app` on this machine, Xcode and Xcode-beta in general — can both be added
+      to one layout, both tiles drag independently, and saving a Dock that holds both keeps both.
 
 ## Hotkeys
 

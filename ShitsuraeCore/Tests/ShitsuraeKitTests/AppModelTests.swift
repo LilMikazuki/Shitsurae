@@ -560,3 +560,45 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
 
     #expect(model.layouts.first?.lastUsedAt != nil)
 }
+
+@Test @MainActor func savingADockThatHoldsXcodeAndXcodeBetaKeepsBothTiles() throws {
+    let engine = FakeDockEngine()
+    engine.stateToReturn = DockState(
+        apps: [
+            DockApp(
+                path: "/Applications/Xcode.app",
+                bundleId: "com.apple.dt.Xcode",
+                label: "Xcode"
+            ),
+            DockApp(
+                path: "/Applications/Xcode-beta.app",
+                bundleId: "com.apple.dt.Xcode",
+                label: "Xcode-beta"
+            )
+        ],
+        settings: DockSettings()
+    )
+    let (model, _, _) = try makeModel(engine: engine)
+
+    try model.saveCurrentDock(named: "Work")
+
+    #expect(model.layouts.first?.apps.map(\.path) == [
+        "/Applications/Xcode.app",
+        "/Applications/Xcode-beta.app"
+    ])
+}
+
+@Test @MainActor func aTileReadFromTheDockIsRefusedWhenDroppedAgain() throws {
+    let finder = "/System/Library/CoreServices/Finder.app"
+    let engine = FakeDockEngine()
+    engine.stateToReturn = DockState(
+        apps: [DockApp(path: finder, bundleId: "com.apple.finder", label: "Finder")],
+        settings: DockSettings()
+    )
+    let (model, _, _) = try makeModel(engine: engine)
+    try model.saveCurrentDock(named: "Work")
+    let layout = try #require(model.layouts.first)
+
+    #expect(model.addApp(in: layout.id, atPath: finder) == false)
+    #expect(model.selectedLayout?.apps.count == 1)
+}

@@ -20,3 +20,11 @@ import Testing
     let text = DockStateFormatter.plainText(DockState(apps: [], settings: DockSettings()))
     #expect(text.contains("Apps (0)"))
 }
+
+@Test func theDumpNamesEverySettingTheAppManages() {
+    let dump = DockStateFormatter.plainText(DockState(apps: [], settings: DockSettings()))
+
+    for key in DockKey.all where key != DockKey.apps {
+        #expect(dump.contains("  \(key): "), "the dump does not name \(key)")
+    }
+}

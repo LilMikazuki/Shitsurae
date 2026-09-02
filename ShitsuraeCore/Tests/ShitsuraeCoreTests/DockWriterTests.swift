@@ -58,3 +58,35 @@ import Testing
     #expect(target.value(forKey: DockKey.magnification) == nil)
     #expect(target.value(forKey: DockKey.tilesize) == nil)
 }
+
+@Test func everyKeyTheWriterSetsIsOneThePreviewSeeds() throws {
+    var settings = DockSettings()
+    settings.tilesize = 48
+    settings.largesize = 96
+    settings.magnification = true
+    settings.autohide = false
+    settings.orientation = .left
+    settings.showRecents = true
+
+    for child in Mirror(reflecting: settings).children {
+        let value = Mirror(reflecting: child.value)
+        #expect(
+            !(value.displayStyle == .optional && value.children.isEmpty),
+            "\(child.label ?? "?") is unset, so this sample no longer covers DockSettings"
+        )
+    }
+
+    let state = DockState(
+        apps: [DockApp(
+            path: "/Applications/Safari.app",
+            bundleId: "com.apple.Safari",
+            label: "Safari"
+        )],
+        settings: settings
+    )
+    let target = InMemoryDockStore([:])
+    try DockWriter(store: target).write(state)
+
+    #expect(Set(target.snapshot.keys) == Set(DockKey.all))
+    #expect(try DockReader(store: target).read() == state)
+}

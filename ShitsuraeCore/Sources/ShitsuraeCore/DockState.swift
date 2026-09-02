@@ -4,10 +4,16 @@ public enum DockOrientation: String, Codable, Sendable, CaseIterable {
     case left, bottom, right
 }
 
-public struct DockApp: Equatable, Codable, Sendable {
+public struct DockApp: Identifiable, Equatable, Codable, Sendable {
     public var path: String
     public var bundleId: String
     public var label: String
+
+    /// The Dock keys a tile by its path: Xcode and Xcode-beta share one bundle
+    /// id and sit in the Dock side by side.
+    public var id: String {
+        path
+    }
 
     public init(path: String, bundleId: String, label: String) {
         self.path = path

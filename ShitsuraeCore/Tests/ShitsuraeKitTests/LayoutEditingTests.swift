@@ -155,3 +155,26 @@ private func contents(_ model: AppModel) -> [String] {
         "nothing changed, so the Dock still matches and the badge must stay"
     )
 }
+
+@Test @MainActor func anApplicationSharingABundleIdentifierWithATileCanStillBeAdded() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-twin-bundles-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    var paths: [String] = []
+    for name in ["A.app", "B.app"] {
+        let contents = root.appendingPathComponent(name).appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let info: [String: Any] = ["CFBundleIdentifier": "test.twin"]
+        try PropertyListSerialization
+            .data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        paths.append(root.appendingPathComponent(name).path)
+    }
+
+    let (model, layout) = try makeModelWithLayout(["A"])
+
+    #expect(model.addApp(in: layout.id, atPath: paths[0]))
+    #expect(model.addApp(in: layout.id, atPath: paths[1]))
+    #expect(model.selectedLayout?.apps.count == 3)
+}

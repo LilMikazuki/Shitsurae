@@ -3,7 +3,13 @@ import ShitsuraeCore
 @testable import ShitsuraeKit
 import Testing
 
-private let realAppPath = "/System/Library/CoreServices/Finder.app"
+private func appDirectory(for bundleId: String) -> String {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-autoquit-apps")
+        .appendingPathComponent("\(bundleId).app")
+    try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url.path
+}
 
 private func layout(
     _ name: String,
@@ -14,7 +20,7 @@ private func layout(
     DockLayout(
         order: order,
         name: name,
-        apps: apps.map { DockApp(path: realAppPath, bundleId: $0, label: $0) },
+        apps: apps.map { DockApp(path: appDirectory(for: $0), bundleId: $0, label: $0) },
         settings: DockSettings(),
         quitsOtherApps: quitsOtherApps
     )

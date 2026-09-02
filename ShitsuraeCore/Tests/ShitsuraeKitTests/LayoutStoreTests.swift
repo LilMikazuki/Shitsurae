@@ -181,5 +181,32 @@ private func layout(_ name: String, order: Int) -> DockLayout {
 
     let loaded = try LayoutStore(directory: dir).load().layouts
 
-    #expect(loaded.first?.apps.map(\.bundleId) == ["test.a", "test.b"])
+    #expect(loaded.first?.apps.map(\.path) == ["/Applications/A.app", "/Applications/B.app"])
+}
+
+@Test func aLayoutFileMayHoldTwoTilesSharingABundleIdentifier() throws {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("shitsurae-shared-id-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let store = LayoutStore(directory: dir)
+    try store.save(DockLayout(
+        order: 0,
+        name: "Work",
+        apps: [
+            DockApp(
+                path: "/Applications/Xcode.app",
+                bundleId: "com.apple.dt.Xcode",
+                label: "Xcode"
+            ),
+            DockApp(
+                path: "/Applications/Xcode-beta.app",
+                bundleId: "com.apple.dt.Xcode",
+                label: "Xcode-beta"
+            )
+        ],
+        settings: DockSettings()
+    ))
+
+    #expect(try store.load().layouts.first?.apps.count == 2)
 }

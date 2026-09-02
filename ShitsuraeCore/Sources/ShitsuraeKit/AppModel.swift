@@ -305,7 +305,7 @@ public final class AppModel {
         var added = 0
         mutate(id) { layout in
             var at = min(index ?? layout.apps.count, layout.apps.count)
-            for app in apps where !layout.apps.contains(where: { $0.bundleId == app.bundleId }) {
+            for app in apps where !layout.apps.contains(where: { $0.id == app.id }) {
                 layout.apps.insert(app, at: at)
                 at += 1
                 added += 1

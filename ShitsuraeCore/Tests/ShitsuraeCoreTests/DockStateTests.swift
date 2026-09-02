@@ -78,3 +78,24 @@ import Testing
     #expect(decoded.settings.orientation == nil)
     #expect(decoded.settings.showRecents == nil)
 }
+
+@Test func twoBundlesSharingAnIdentifierAreTwoTiles() {
+    let stable = DockApp(
+        path: "/Applications/Xcode.app",
+        bundleId: "com.apple.dt.Xcode",
+        label: "Xcode"
+    )
+    let beta = DockApp(
+        path: "/Applications/Xcode-beta.app",
+        bundleId: "com.apple.dt.Xcode",
+        label: "Xcode-beta"
+    )
+    let renamed = DockApp(
+        path: "/Applications/Xcode.app",
+        bundleId: "com.apple.dt.Xcode",
+        label: "Xcode 26"
+    )
+
+    #expect(stable.id != beta.id)
+    #expect(stable.id == renamed.id)
+}

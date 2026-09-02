@@ -14,7 +14,7 @@ struct DockStrip: View {
     private let tileGap: CGFloat = 10
     private let stripRadius: CGFloat = 30
 
-    @State private var draggingBundleId: String?
+    @State private var draggingID: String?
     @State private var dragShift: CGFloat = 0
 
     @State private var scrollOffset: CGFloat = 0
@@ -45,7 +45,7 @@ struct DockStrip: View {
                 }
             }
         }
-        .onChange(of: layout.apps.map(\.bundleId)) { _, _ in
+        .onChange(of: layout.apps.map(\.id)) { _, _ in
             dropNote = nil
             icons.invalidate()
         }
@@ -54,13 +54,13 @@ struct DockStrip: View {
     private var strip: some View {
         let drag = plannedDrag()
         let row = HStack(alignment: .bottom, spacing: tileGap) {
-            ForEach(Array(layout.apps.enumerated()), id: \.element.bundleId) { index, app in
+            ForEach(Array(layout.apps.enumerated()), id: \.element.id) { index, app in
                 tile(app, at: index, drag: drag)
             }
             addTile
         }
         .padding(EdgeInsets(top: 14, leading: 12, bottom: 11, trailing: 12))
-        .animation(.snappy(duration: 0.18), value: layout.apps.map(\.bundleId))
+        .animation(.snappy(duration: 0.18), value: layout.apps.map(\.id))
 
         return ViewThatFits(in: .horizontal) {
             row
@@ -148,15 +148,15 @@ struct DockStrip: View {
         .gesture(
             DragGesture(minimumDistance: 4)
                 .onChanged { value in
-                    if draggingBundleId == nil {
-                        draggingBundleId = app.bundleId
+                    if draggingID == nil {
+                        draggingID = app.id
                     }
                     guard dragging(app) else { return }
                     dragShift = value.translation.width
                 }
                 .onEnded { _ in
                     defer {
-                        draggingBundleId = nil
+                        draggingID = nil
                         dragShift = 0
                     }
                     guard dragging(app),
@@ -216,12 +216,12 @@ struct DockStrip: View {
     }
 
     private func dragging(_ app: DockApp) -> Bool {
-        draggingBundleId == app.bundleId
+        draggingID == app.id
     }
 
     private func plannedDrag() -> TileDrag? {
-        guard let id = draggingBundleId,
-              let from = layout.apps.firstIndex(where: { $0.bundleId == id })
+        guard let id = draggingID,
+              let from = layout.apps.firstIndex(where: { $0.id == id })
         else { return nil }
 
         return TileDrag(

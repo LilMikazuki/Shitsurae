@@ -52,12 +52,12 @@ public struct DockLayout: Identifiable, Codable, Equatable, Sendable {
         )
     }
 
-    /// The strip identifies tiles by bundle id and the Dock holds an
-    /// application once, so a hand-edited file must not smuggle in a twin.
+    /// A hand-edited file must not hold one tile twice: the Dock does not, and
+    /// the strip keys on `DockApp.id`.
     func withUniqueApps() -> DockLayout {
         var seen: Set<String> = []
         var copy = self
-        copy.apps = apps.filter { seen.insert($0.bundleId).inserted }
+        copy.apps = apps.filter { seen.insert($0.id).inserted }
         return copy
     }
 

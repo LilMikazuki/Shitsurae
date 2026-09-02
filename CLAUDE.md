@@ -90,6 +90,12 @@ review lived there. Two rules, both mechanically enforced by
   untouched Dock at first launch, and applying it restores every key the app can
   write, because a layout stores all seven and `nil` clears rather than skips.
   Pinned by `applyingASavedStateAgainPutsBackEverySettingTheAppCanChange`.
+- **A tile's identity is its path, not its bundle identifier.** Two applications
+  may carry one identifier — Xcode and Xcode-beta, or two copies of Chrome — and
+  the Dock holds both side by side. `DockLayout.withUniqueApps`,
+  `AppModel.addApps` and the strip all key on `DockApp.id`, which is the path.
+  Keying on the bundle id silently dropped the second tile. Pinned by
+  `savingADockThatHoldsXcodeAndXcodeBetaKeepsBothTiles`.
 - **The write and the restart are one step, in that order.** The Dock reads
   `persistent-apps` at launch and holds the tile list in memory, then writes it
   back enriched with its own `GUID` and bookmark data — which is why tiles in the
