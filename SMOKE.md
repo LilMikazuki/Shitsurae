@@ -39,6 +39,8 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
 - [ ] The app icon appears in the Dock and in the ⌘Tab switcher.
 - [ ] `Quit Shitsurae` quits the app.
 - [ ] `Settings…` and ⌘, open the settings window in front of other windows.
+- [ ] With no windows open, clicking Shitsurae's tile in the Dock opens the settings window in
+      front of other windows.
 - [ ] With no layouts, the menu shows a hint that cannot be clicked.
 - [ ] Clicking a layout restarts the Dock and moves the checkmark to it.
 - [ ] Every row's title starts at the same left edge, checked or not.
@@ -160,6 +162,15 @@ one on screen. Turn it off again when you are done testing.
 
 ## Alerts
 
+- [ ] An alert never stacks on another, and the one that says the Dock changed is not lost.
+      Freeze the Dock with `kill -STOP $(pgrep -x Dock)`. Open Settings, right-click a layout →
+      Delete… so the question is on screen, then press the hotkey of a different layout. The apply
+      gives up after about five seconds: the question stays on top and nothing appears over it.
+      Press the same hotkey again — a press during those five seconds is dropped by
+      `isChangingDock`, so wait for the first to end — and again nothing appears over the question.
+      Press Cancel: "Your Dock was changed but not applied" appears exactly once, and the layout is
+      still in the list. Thaw with `kill -CONT $(pgrep -x Dock)`; the Dock relaunches holding what
+      the failed applies wrote, so apply the layout you started from.
 - [ ] Delete asks for confirmation, the button is red and fires on Return.
 - [ ] Esc cancels a deletion.
 - [ ] A Dock with a separator produces the separator alert, not the "format

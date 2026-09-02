@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct ShitsuraeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model: AppModel
+    @State private var alertPresenter: AlertPresenter
 
     init() {
         LayoutStore.migrateLegacyDirectory()
@@ -38,13 +39,14 @@ struct ShitsuraeApp: App {
             Task { await model?.apply(id: id) }
         }
         _model = State(initialValue: model)
+        _alertPresenter = State(initialValue: AlertPresenter(model: model))
     }
 
     var body: some Scene {
         MenuBarExtra {
             LayoutMenu(model: model)
         } label: {
-            MenuBarIcon(model: model, windows: delegate.windows)
+            MenuBarIcon(windows: delegate.windows)
         }
         .menuBarExtraStyle(.menu)
 

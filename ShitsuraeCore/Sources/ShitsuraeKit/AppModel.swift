@@ -58,7 +58,12 @@ public final class AppModel {
         }
     }
 
-    public var alert: ShitsuraeAlertKind?
+    private var alerts: [ShitsuraeAlertKind] = []
+    private var presenting = false
+
+    public var alert: ShitsuraeAlertKind? {
+        alerts.first
+    }
 
     private let quitter: any AppQuitting
     private let store: LayoutStore
@@ -181,7 +186,7 @@ public final class AppModel {
                 setActiveLayout(nil)
             }
         } catch {
-            alert = .failure(ShitsuraeFailure(from: error))
+            raise(.failure(ShitsuraeFailure(from: error)))
         }
     }
 
@@ -198,7 +203,7 @@ public final class AppModel {
         do {
             state = try switcher.readCurrentState()
         } catch {
-            alert = .failure(ShitsuraeFailure(from: error))
+            raise(.failure(ShitsuraeFailure(from: error)))
             throw error
         }
 
@@ -210,7 +215,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
-            alert = .saveFailed
+            raise(.saveFailed)
             throw error
         }
         layouts.append(layout)
@@ -266,7 +271,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
-            alert = .saveFailed
+            raise(.saveFailed)
             return false
         }
         replace(layout)
@@ -282,7 +287,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
-            alert = .saveFailed
+            raise(.saveFailed)
             return
         }
         replace(layout)
@@ -368,7 +373,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
-            alert = .saveFailed
+            raise(.saveFailed)
             return
         }
         replace(layout)
@@ -392,21 +397,36 @@ public final class AppModel {
 
     public func askDelete() {
         guard let layout = selectedLayout else { return }
-        alert = .delete(id: layout.id, name: layout.name)
+        raise(.delete(id: layout.id, name: layout.name))
     }
 
-    public func dismissAlert() {
-        alert = nil
+    public func beginPresenting() -> ShitsuraeAlertKind? {
+        guard !presenting, let kind = alerts.first else { return nil }
+        presenting = true
+        return kind
     }
 
-    public func confirmAlert() async {
-        switch alert {
+    public func dismissAlert(_ kind: ShitsuraeAlertKind) {
+        guard alerts.first == kind else { return }
+        alerts.removeFirst()
+        presenting = false
+    }
+
+    public func confirmAlert(_ kind: ShitsuraeAlertKind) async {
+        guard alerts.first == kind else { return }
+        alerts.removeFirst()
+        presenting = false
+        switch kind {
         case let .delete(id, _):
-            alert = nil
             delete(id: id)
-        case .failure, .saveFailed, nil:
-            alert = nil
+        case .failure, .saveFailed:
+            break
         }
+    }
+
+    private func raise(_ kind: ShitsuraeAlertKind) {
+        guard !alerts.contains(kind) else { return }
+        alerts.append(kind)
     }
 }
 

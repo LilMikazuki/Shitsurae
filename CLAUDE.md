@@ -127,6 +127,16 @@ review lived there. Two rules, both mechanically enforced by
   `savingWhileGeneralIsShownShowsTheNewLayout`,
   `applyingWhileGeneralIsShownLeavesGeneralAlone` and
   `applyingWhileALayoutIsShownShowsTheAppliedOne`.
+- **One alert is on screen at a time, and the model decides which.** `alerts`
+  is a queue, `alert` is its head, and `beginPresenting()` hands the head to
+  one caller and `nil` to everyone after it until an answer arrives. An answer
+  names the kind it was given for and is ignored if that is not the head, so a
+  question is never answered by a click meant for something else, and a
+  `writtenButNotApplied` raised under an open question waits rather than
+  replacing it. `AlertPresenter` keeps no state of its own: it asks, shows and
+  reports back. Pinned by `onlyOneCallerIsToldToShowAnAlert`,
+  `answeringHandsTheNextAlertToTheNextCaller` and
+  `anAnswerMeantForAnotherDialogIsIgnored`.
 - **State kept outside the model is invisible to SwiftUI.** `activeLayoutID` is
   a stored property written only by `setActiveLayout`, which writes through to
   the one `ActiveLayoutMarker` the model owns. Turning it into a computed

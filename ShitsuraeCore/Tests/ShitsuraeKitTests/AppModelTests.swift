@@ -259,9 +259,10 @@ private func removeDomain(_ domain: String) {
     let personal = try #require(model.layouts.first { $0.name == "Personal" }).id
     model.page = .layout(work)
     model.askDelete()
+    let shown = try #require(model.alert)
 
     model.page = .layout(personal)
-    await model.confirmAlert()
+    await model.confirmAlert(shown)
 
     #expect(model.layouts.map(\.name) == ["Personal"], "the dialog named Work; Work must go")
 }
@@ -842,6 +843,95 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     model.page = .general
 
     model.askDelete()
+
+    #expect(model.alert == nil)
+}
+
+@Test @MainActor func aFailureWhileAQuestionIsOpenDoesNotReplaceIt() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    _ = model.beginPresenting()
+
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+
+    #expect(model.alert == .delete(id: work, name: "Work"))
+}
+
+@Test @MainActor func aFailureWhileAQuestionIsOpenIsToldOnceItIsAnswered() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    _ = model.beginPresenting()
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+
+    model.dismissAlert(.delete(id: work, name: "Work"))
+
+    #expect(model.beginPresenting() == .failure(.writtenButNotApplied))
+}
+
+@Test @MainActor func onlyOneCallerIsToldToShowAnAlert() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+
+    #expect(model.beginPresenting() == .delete(id: work, name: "Work"))
+    #expect(model.beginPresenting() == nil)
+}
+
+@Test @MainActor func answeringHandsTheNextAlertToTheNextCaller() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+    _ = model.beginPresenting()
+
+    await model.confirmAlert(.delete(id: work, name: "Work"))
+
+    #expect(model.layouts.isEmpty)
+    #expect(model.beginPresenting() == .failure(.writtenButNotApplied))
+}
+
+@Test @MainActor func anAnswerMeantForAnotherDialogIsIgnored() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+    _ = model.beginPresenting()
+
+    await model.confirmAlert(.failure(.writtenButNotApplied))
+
+    #expect(model.layouts.map(\.name) == ["Work"])
+    #expect(model.alert == .delete(id: work, name: "Work"))
+    #expect(model.beginPresenting() == nil)
+}
+
+@Test @MainActor func dismissingAnotherDialogLeavesTheQuestionOpen() throws {
+    let (model, _, _) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    model.askDelete()
+    _ = model.beginPresenting()
+
+    model.dismissAlert(.saveFailed)
+
+    #expect(model.alert == .delete(id: work, name: "Work"))
+    #expect(model.beginPresenting() == nil)
+}
+
+@Test @MainActor func theSameFailureTwiceIsToldOnce() async throws {
+    let (model, _, engine) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    engine.applyError = .restart(.terminateRefused)
+    await model.apply(id: work)
+    await model.apply(id: work)
+
+    model.dismissAlert(.failure(.writtenButNotApplied))
 
     #expect(model.alert == nil)
 }

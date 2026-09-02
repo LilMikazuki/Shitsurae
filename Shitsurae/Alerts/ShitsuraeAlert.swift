@@ -3,9 +3,7 @@ import ShitsuraeKit
 
 enum ShitsuraeAlert {
     @MainActor
-    static func present(_ model: AppModel) {
-        guard let kind = model.alert else { return }
-
+    static func ask(_ kind: ShitsuraeAlertKind) -> Bool {
         let alert = NSAlert()
         alert.messageText = kind.title
         alert.informativeText = kind.message
@@ -21,10 +19,6 @@ enum ShitsuraeAlert {
 
         NSApplication.shared.activate()
 
-        if alert.runModal() == .alertFirstButtonReturn {
-            Task { await model.confirmAlert() }
-        } else {
-            model.dismissAlert()
-        }
+        return alert.runModal() == .alertFirstButtonReturn
     }
 }
