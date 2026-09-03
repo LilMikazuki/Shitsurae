@@ -12,7 +12,8 @@ private func makeModel(
 ) throws -> (AppModel, LayoutStore, FakeDockEngine) {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-model-\(UUID().uuidString)")
-    let store = LayoutStore(directory: dir)
+    let log = RecordingEventLog()
+    let store = LayoutStore(directory: dir, log: log)
     try store.saveAll(layouts)
 
     let defaults = temporaryDefaults()
@@ -20,7 +21,8 @@ private func makeModel(
         store: store,
         switcher: SwitchService(engine: engine),
         marker: ActiveLayoutMarker(defaults: defaults),
-        shortcuts: ShortcutRecorder(hotkeys: hotkeys)
+        shortcuts: ShortcutRecorder(hotkeys: hotkeys, log: log),
+        log: log
     )
     model.reload()
     return (model, store, engine)

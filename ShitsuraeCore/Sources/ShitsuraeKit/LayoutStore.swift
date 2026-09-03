@@ -28,9 +28,11 @@ public struct LoadedLayouts: Equatable, Sendable {
 
 public struct LayoutStore: Sendable {
     public let directory: URL
+    private let log: any EventLog
 
-    public init(directory: URL) {
+    public init(directory: URL, log: any EventLog = SystemEventLog()) {
         self.directory = directory
+        self.log = log
     }
 
     public static var defaultDirectory: URL {
@@ -53,20 +55,32 @@ public struct LayoutStore: Sendable {
             .appendingPathComponent("Library/Application Support/Shitsurae")
     }
 
-    public static func migrateLegacyDirectory() {
+    public static func migrateLegacyDirectory(log: any EventLog = SystemEventLog()) {
         migrate(
             from: supportDirectory.appendingPathComponent("presets"),
-            to: supportDirectory.appendingPathComponent("layouts")
+            to: supportDirectory.appendingPathComponent("layouts"),
+            log: log
         )
     }
 
     @discardableResult
-    static func migrate(from legacy: URL, to current: URL) -> Bool {
+    static func migrate(
+        from legacy: URL,
+        to current: URL,
+        log: any EventLog = SystemEventLog()
+    ) -> Bool {
         let manager = FileManager.default
         guard manager.fileExists(atPath: legacy.path),
               !manager.fileExists(atPath: current.path)
         else { return false }
-        return (try? manager.moveItem(at: legacy, to: current)) != nil
+        do {
+            try manager.moveItem(at: legacy, to: current)
+        } catch {
+            log.record(.error, .layouts, "Moving the legacy layouts folder failed: \(error)")
+            return false
+        }
+        log.record(.notice, .layouts, "Moved the legacy layouts folder into place")
+        return true
     }
 
     public func load() throws -> LoadedLayouts {
@@ -86,13 +100,17 @@ public struct LayoutStore: Sendable {
             .filter({ $0.pathExtension == "json" })
             .sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
         {
-            guard let data = try? Data(contentsOf: file),
-                  let layout = try? decoder.decode(DockLayout.self, from: data)
-            else {
+            do {
+                let data = try Data(contentsOf: file)
+                let layout = try decoder.decode(DockLayout.self, from: data)
+                decoded.append((file.lastPathComponent, layout))
+            } catch {
                 unreadable.append(file.lastPathComponent)
-                continue
+                log.record(
+                    .error, .layouts,
+                    "Reading \(file.lastPathComponent) failed: \(error)"
+                )
             }
-            decoded.append((file.lastPathComponent, layout))
         }
 
         var idAt: [String: UUID] = [:]
@@ -144,10 +162,18 @@ public struct LayoutStore: Sendable {
 
             let address = "\(layout.id.uuidString).json"
             guard file.lastPathComponent != address, !names.contains(address) else { continue }
-            if (try? manager.moveItem(at: file, to: directory.appendingPathComponent(address)))
-                != nil
-            {
+            do {
+                try manager.moveItem(at: file, to: directory.appendingPathComponent(address))
                 names.insert(address)
+                log.record(
+                    .notice, .layouts,
+                    "Renamed \(file.lastPathComponent) to \(address)"
+                )
+            } catch {
+                log.record(
+                    .error, .layouts,
+                    "Renaming \(file.lastPathComponent) to \(address) failed: \(error)"
+                )
             }
         }
     }

@@ -14,9 +14,11 @@ public final class ShortcutRecorder {
     private var revision = 0
     private var deactivation: (any NSObjectProtocol)?
     private let hotkeys: any Hotkeys
+    private let log: any EventLog
 
-    public init(hotkeys: any Hotkeys = HotkeyService()) {
+    public init(hotkeys: any Hotkeys = HotkeyService(), log: any EventLog = SystemEventLog()) {
         self.hotkeys = hotkeys
+        self.log = log
     }
 
     public func label(for id: UUID) -> String? {
@@ -137,7 +139,9 @@ public final class ShortcutRecorder {
         let held = event.modifierFlags.intersection([.command, .option, .shift, .control])
         guard held.isEmpty else { return }
 
-        hotkeys.assign(pending, to: id)
+        if !hotkeys.assign(pending, to: id) {
+            log.record(.error, .hotkeys, "Storing the shortcut for layout \(id) failed")
+        }
         revision += 1
         stop()
     }

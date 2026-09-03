@@ -208,3 +208,22 @@ final class InMemoryHotkeys: Hotkeys {
         handler?(id)
     }
 }
+
+final class RecordingEventLog: EventLog, @unchecked Sendable {
+    private let lock = NSLock()
+    private var entries: [(level: LogLevel, category: LogCategory, message: String)] = []
+
+    func record(_ level: LogLevel, _ category: LogCategory, _ message: String) {
+        lock.withLock { entries.append((level, category, message)) }
+    }
+
+    var messages: [String] {
+        lock.withLock { entries.map(\.message) }
+    }
+
+    func messages(_ level: LogLevel, _ category: LogCategory) -> [String] {
+        lock.withLock {
+            entries.filter { $0.level == level && $0.category == category }.map(\.message)
+        }
+    }
+}

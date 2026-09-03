@@ -30,6 +30,12 @@ import SwiftUI.
   Never a paragraph, and never a comment about what the code does.
 - Everything in the repository is in English: identifiers, comments, commit
   messages, CI step names.
+- A log line records an outcome and its identifiers; it is not a comment. A line
+  that would only restate the next statement is not written.
+- A failure is logged once, at the site that decides its outcome. A throw site
+  logs only a fact the error does not carry.
+- Layout names never reach the log. Everything else that does is public, marked
+  in one place — `SystemEventLog.record` — so a call site passes a plain `String`.
 - Tests are named as sentences describing the guarantee
   (`aRestartFailureDoesNotSetTheActiveMark`), not after the method under test.
 - A test that cannot fail is worse than no test. When adding one for a bug, check
@@ -113,8 +119,10 @@ review lived there. Two rules, both mechanically enforced by
   lost rather than delayed. Nothing may be inserted between the write and
   `restarter.restart()` in `DockEngine.apply`.
 - **A layout that cannot be written to disk is not a Dock failure.** It raises
-  `ShitsuraeAlertKind.saveFailed`, whose text promises the Dock is untouched —
-  which it is, because nothing reached `DockEngine`.
+  `ShitsuraeAlertKind.saveFailed` — or `deleteFailed`, when the file could not
+  be removed — whose text promises the Dock is untouched, which it is, because
+  nothing reached `DockEngine`. Pinned by
+  `aLayoutStoreFailureIsNotReportedAsADockFailure`.
 - **Auto-Quit is a field of the layout, not Dock content.** `setQuitsOtherApps`
   saves the layout without going through `mutate`, so toggling it leaves the
   active mark alone: the Dock still holds that layout. Pinned by

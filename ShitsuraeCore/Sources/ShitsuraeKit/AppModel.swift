@@ -67,6 +67,7 @@ public final class AppModel {
     }
 
     private let quitter: any AppQuitting
+    private let log: any EventLog
     private let store: LayoutStore
     private let switcher: SwitchService
     private let marker: ActiveLayoutMarker
@@ -77,13 +78,15 @@ public final class AppModel {
         switcher: SwitchService,
         marker: ActiveLayoutMarker = ActiveLayoutMarker(),
         shortcuts: ShortcutRecorder = ShortcutRecorder(),
-        quitter: any AppQuitting = WorkspaceAppQuitter()
+        quitter: any AppQuitting = WorkspaceAppQuitter(),
+        log: any EventLog = SystemEventLog()
     ) {
         self.store = store
         self.switcher = switcher
         self.marker = marker
         self.shortcuts = shortcuts
         self.quitter = quitter
+        self.log = log
         activeLayoutID = marker.id
     }
 
@@ -114,13 +117,15 @@ public final class AppModel {
     }
 
     public func reload() {
-        if let loaded = try? store.load() {
+        do {
+            let loaded = try store.load()
             layouts = loaded.layouts
             unreadableFiles = loaded.unreadable
             duplicateFiles = loaded.duplicates
             storeUnavailable = false
-        } else {
+        } catch {
             storeUnavailable = true
+            log.record(.error, .layouts, "Loading the layouts folder failed: \(error)")
         }
         listDidChange()
     }
@@ -152,7 +157,10 @@ public final class AppModel {
     }
 
     public func apply(id: UUID) async {
-        guard !isChangingDock else { return }
+        guard !isChangingDock else {
+            log.record(.notice, .dock, "Applying \(id) dropped: another Dock change is in flight")
+            return
+        }
         guard let snapshot = layouts.first(where: { $0.id == id }) else { return }
         isChangingDock = true
         defer { isChangingDock = false }
@@ -162,13 +170,21 @@ public final class AppModel {
         // mark and the retry takes the normal writing path.
         let reapplying = id == activeLayoutID
         do {
-            try await offMainThread { () throws(DockError) in
+            let wrote = try await offMainThread { () throws(DockError) -> Bool in
                 if reapplying {
-                    try switcher.applyIfNeeded(snapshot)
-                } else {
-                    try switcher.apply(snapshot)
+                    return try switcher.applyIfNeeded(snapshot)
                 }
+                try switcher.apply(snapshot)
+                return true
             }
+            log.record(
+                .notice, .dock,
+                """
+                Applied layout \(id): \
+                \(snapshot.dockState(skippingMissing: .default).apps.count) tiles, \
+                \(wrote ? "the Dock was written" : "the Dock already held it")
+                """
+            )
             if snapshot.quitsOtherApps {
                 quitOthers(for: snapshot)
             }
@@ -180,14 +196,21 @@ public final class AppModel {
             {
                 setActiveLayout(id)
                 fresh.lastUsedAt = Date()
-                if (try? store.save(fresh)) != nil {
+                do {
+                    try store.save(fresh)
                     replace(fresh)
+                } catch {
+                    storeFailed(error, during: "Recording the last use of", layout: id)
                 }
             } else {
                 setActiveLayout(nil)
+                log.record(
+                    .notice, .dock,
+                    "Layout \(id) changed while it was being applied; the active mark was cleared"
+                )
             }
         } catch {
-            raise(.failure(ShitsuraeFailure(from: error)))
+            raise(.failure(dockFailed(error, during: "Applying layout \(id)")))
         }
     }
 
@@ -196,7 +219,14 @@ public final class AppModel {
         // "everything outside an empty layout" is every app the user has open.
         guard !layout.dockState(skippingMissing: .default).apps.isEmpty else { return }
         let kept = Set(layout.apps.map(\.bundleId))
-        quitter.quit(bundleIds: quitter.runningBundleIds().subtracting(kept))
+        let quitting = quitter.runningBundleIds().subtracting(kept)
+        quitter.quit(bundleIds: quitting)
+        if !quitting.isEmpty {
+            log.record(
+                .notice, .autoQuit,
+                "Asked \(quitting.count) apps to quit: \(quitting.sorted().joined(separator: ", "))"
+            )
+        }
     }
 
     public func saveCurrentDock(named name: String) throws {
@@ -204,7 +234,7 @@ public final class AppModel {
         do {
             state = try switcher.readCurrentState()
         } catch {
-            raise(.failure(ShitsuraeFailure(from: error)))
+            raise(.failure(dockFailed(error, during: "Reading the Dock for a new layout")))
             throw error
         }
 
@@ -216,6 +246,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
+            storeFailed(error, during: "Saving", layout: layout.id)
             raise(.saveFailed)
             throw error
         }
@@ -226,18 +257,29 @@ public final class AppModel {
 
     public func seedInitialLayoutIfNeeded() {
         guard layouts.isEmpty, unreadableFiles.isEmpty, !storeUnavailable else { return }
-        guard let state = try? switcher.readCurrentState() else { return }
+        let state: DockState
+        do {
+            state = try switcher.readCurrentState()
+        } catch {
+            dockFailed(error, during: "Capturing the first Dock")
+            return
+        }
 
         let layout = DockLayout(order: 0, name: "Dock 1", state: state).withUniqueApps()
         do {
             try store.save(layout)
         } catch {
+            storeFailed(error, during: "Seeding", layout: layout.id)
             return
         }
 
         layouts.append(layout)
         setActiveLayout(layout.id)
         listDidChange()
+        log.record(
+            .notice, .layouts,
+            "First launch captured the current Dock as layout \(layout.id)"
+        )
     }
 
     public func deleteSelected() {
@@ -249,6 +291,7 @@ public final class AppModel {
         do {
             try store.delete(id: id)
         } catch {
+            storeFailed(error, during: "Deleting", layout: id)
             raise(.deleteFailed)
             return
         }
@@ -273,6 +316,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
+            storeFailed(error, during: "Renaming", layout: id)
             raise(.saveFailed)
             return false
         }
@@ -289,6 +333,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
+            storeFailed(error, during: "Setting Auto-Quit on", layout: id)
             raise(.saveFailed)
             return
         }
@@ -375,6 +420,7 @@ public final class AppModel {
         do {
             try store.save(layout)
         } catch {
+            storeFailed(error, during: "Editing", layout: id)
             raise(.saveFailed)
             return
         }
@@ -424,6 +470,17 @@ public final class AppModel {
         case .failure, .saveFailed, .deleteFailed:
             break
         }
+    }
+
+    @discardableResult
+    private func dockFailed(_ error: DockError, during operation: String) -> ShitsuraeFailure {
+        let reason = ShitsuraeFailure(from: error)
+        log.record(.error, .dock, "\(operation) failed: \(reason) — \(error)")
+        return reason
+    }
+
+    private func storeFailed(_ error: any Error, during operation: String, layout id: UUID) {
+        log.record(.error, .layouts, "\(operation) layout \(id) failed: \(error)")
     }
 
     private func raise(_ kind: ShitsuraeAlertKind) {

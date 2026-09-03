@@ -3,6 +3,7 @@ import SwiftUI
 
 struct GeneralTab: View {
     let launchAtLogin: any LaunchAtLoginControlling
+    private let log: any EventLog = SystemEventLog()
 
     @State private var launchEnabled = false
     @State private var launchProblem: String?
@@ -75,7 +76,9 @@ struct GeneralTab: View {
     private func setLaunchAtLogin(_ on: Bool) {
         do {
             try launchAtLogin.setEnabled(on)
-        } catch {}
+        } catch {
+            log.record(.error, .launchAtLogin, "Changing the login item failed: \(error)")
+        }
         launchEnabled = launchAtLogin.isEnabled
         launchProblem = launchEnabled == on ? nil : (on
             ? "macOS did not allow adding Shitsurae to your login items."

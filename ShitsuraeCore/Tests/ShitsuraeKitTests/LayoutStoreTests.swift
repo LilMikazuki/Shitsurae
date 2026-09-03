@@ -402,3 +402,19 @@ private func layout(_ name: String, order: Int) -> DockLayout {
     ))
     #expect(try store.load().layouts.map(\.name) == ["Work"])
 }
+
+@Test func aFileRenamedByAdoptionSaysSoInTheLog() throws {
+    let dir = try temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let log = RecordingEventLog()
+    let store = LayoutStore(directory: dir, log: log)
+    let work = layout("Work", order: 0)
+    try JSONEncoder().encode(work).write(to: dir.appendingPathComponent("Work.json"))
+
+    store.adoptStrayFiles()
+
+    let notices = log.messages(.notice, .layouts)
+    #expect(notices.count == 1)
+    #expect(notices.first?.contains("Work.json") == true)
+    #expect(notices.first?.contains("\(work.id.uuidString).json") == true)
+}

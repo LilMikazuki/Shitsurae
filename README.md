@@ -74,6 +74,25 @@ consumer.
 - Hotkeys: in the app's preferences domain, not in the layout files — a layout
   copied to another machine deliberately brings no shortcuts with it.
 
+### Diagnosing a problem
+
+Shitsurae logs what it does and every failure it meets to the unified log, under
+the subsystem `io.github.lilmikazuki.Shitsurae`. To see the last hour:
+
+```bash
+log show --last 1h --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"'
+```
+
+or, to watch it live while reproducing something:
+
+```bash
+log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"'
+```
+
+Layout names never appear there — a layout is identified by its id, which is also
+its file name. Paths, bundle ids, Dock keys and error descriptions do, so the
+output is safe to read but worth a glance before pasting it into an issue.
+
 ## The CLI
 
 `shitsurae-cli` exercises the core package without the app:

@@ -46,13 +46,16 @@ public final class HotkeyService: Hotkeys {
     private var registered: Set<UUID> = []
     private var armed = true
     private let binding: any ShortcutBinding
+    private let log: any EventLog
 
-    public init() {
+    public init(log: any EventLog = SystemEventLog()) {
         binding = LiveShortcutBinding()
+        self.log = log
     }
 
-    init(binding: any ShortcutBinding) {
+    init(binding: any ShortcutBinding, log: any EventLog = SystemEventLog()) {
         self.binding = binding
+        self.log = log
     }
 
     private func name(for id: UUID) -> KeyboardShortcuts.Name {
@@ -103,6 +106,7 @@ public final class HotkeyService: Hotkeys {
             // `onKeyUp` appends, so binding an id that is already bound makes one
             // press apply its layout twice.
             binding.bind(name(for: id)) { [weak self] in
+                self?.log.record(.notice, .hotkeys, "Shortcut fired for layout \(id)")
                 self?.handler?(id)
             }
             if !armed {
@@ -112,5 +116,6 @@ public final class HotkeyService: Hotkeys {
             }
         }
         registered = wanted
+        log.record(.debug, .hotkeys, "Registered \(wanted.count) shortcuts")
     }
 }

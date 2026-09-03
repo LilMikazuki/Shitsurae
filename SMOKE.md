@@ -79,7 +79,8 @@ one on screen. Turn it off again when you are done testing.
       and the explanation does not reappear over the next successful action.
 - [ ] With the layouts directory itself made read-only — `chmod u-w
       ~/Library/Application\ Support/Shitsurae/layouts` — Save says the layout
-      could not be written and states plainly that the Dock was not changed.
+      could not be written, states plainly that the Dock was not changed, and names
+      the very directory you just made read-only — not its parent.
       Undo with `chmod u+w` on the same directory. Making the *parent* read-only
       does nothing: the write lands one level deeper.
 
@@ -172,6 +173,10 @@ one on screen. Turn it off again when you are done testing.
       still in the list. Thaw with `kill -CONT $(pgrep -x Dock)`; the Dock relaunches holding what
       the failed applies wrote, so apply the layout you started from.
 - [ ] Delete asks for confirmation, the button is red and fires on Return.
+- [ ] A layout that cannot be deleted: `chmod u-w ~/Library/Application\ Support/Shitsurae/layouts`,
+      Delete a layout, confirm. The alert says the layout is still in the list, that the Dock was
+      not changed, and names the very directory you just made read-only; the row stays, and the
+      `ACTIVE` badge stays if it had it. Undo with `chmod u+w` on the same directory.
 - [ ] Esc cancels a deletion.
 - [ ] A Dock with a separator produces the separator alert, not the "format
       changed" one. Set it up with `defaults write com.apple.dock persistent-apps
@@ -212,6 +217,39 @@ step above that quits the Dock should confirm it actually comes back.
 `writeFailed` cannot be reproduced by hand either: there is no reliable way to
 make the preferences daemon reject a write. Covered by the failure-mapping unit
 test.
+
+## Console
+
+Run this in a Terminal for the whole session below. `--level debug` so nothing is hidden: the
+shortcut-registration count is the only `debug` line, and `--level info` would hide it.
+
+```bash
+log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"' --level debug
+```
+
+This section is the only check that the live logger reaches the unified log at all. No test can
+see it: the recording fake is handed each message before `os.Logger` is.
+
+- [ ] Applying a layout writes one `dock` notice naming the layout id and the tile count, and says
+      whether the Dock was written or already held it.
+- [ ] Pressing a hotkey writes a `hotkeys` notice with the layout id before the apply line. The
+      `hotkeys` debug count appears too — `register` runs on every reload — which is how you can
+      tell `--level debug` took.
+- [ ] The `unsupportedSetting` scenario under Alerts writes a `dock` error whose reason is
+      `unsupportedSetting` and whose error names both the key and the value. One line, from
+      `saveCurrentDock`'s read catch — not one per throw.
+- [ ] With the Dock frozen, the failed apply writes one `dock` error naming `writtenButNotApplied`
+      and no "Applied layout" notice.
+- [ ] The refused delete above writes a `layouts` error with the layout id.
+- [ ] On a machine with no layouts, the first launch writes a `layouts` notice carrying the id of
+      the seeded layout and not its name; quit and launch again and no second seed line appears.
+- [ ] Copying a layout file in under a name of your own and then opening the settings window writes
+      a `layouts` notice naming both the file you copied and the address it now has.
+- [ ] No line in the whole session contains a layout name: name a layout `Canary`, apply, rename
+      and delete it, and `grep Canary` the stream. Empty.
+- [ ] No line in the whole session reads `<private>`. That would mean `SystemEventLog.record` lost
+      its `privacy: .public`, which hides every line rather than leaking one and leaves a bug
+      report with nothing in it.
 
 ## Appearance and accessibility
 
