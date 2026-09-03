@@ -3,6 +3,7 @@ import SwiftUI
 
 struct LayoutMenu: View {
     let model: AppModel
+    let windows: WindowOpener
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -26,9 +27,8 @@ struct LayoutMenu: View {
         Divider()
 
         Button("Settings…") {
-            activateAndOpen("settings")
+            windows.show("settings")
         }
-        .keyboardShortcut(",", modifiers: .command)
 
         Button("Quit Shitsurae") {
             NSApplication.shared.terminate(nil)

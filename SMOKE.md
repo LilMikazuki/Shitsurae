@@ -38,7 +38,12 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
 - [ ] After launch the icon appears at the right of the menu bar.
 - [ ] The app icon appears in the Dock and in the ⌘Tab switcher.
 - [ ] `Quit Shitsurae` quits the app.
-- [ ] `Settings…` and ⌘, open the settings window in front of other windows.
+- [ ] `Settings…` opens the settings window in front of other windows, on the first click —
+      try it several times from different frontmost apps, because the failure it replaces was
+      intermittent rather than constant. It has no key equivalent: a shortcut on an item that
+      lives only in the status-item menu fires but leaves the window behind, and the main-menu
+      command that would carry one was not built. Clicking the item and clicking the Dock tile
+      are the two ways in.
 - [ ] With no windows open, clicking Shitsurae's tile in the Dock opens the settings window in
       front of other windows.
 - [ ] With no layouts, the menu shows a hint that cannot be clicked.

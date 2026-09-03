@@ -44,7 +44,7 @@ struct ShitsuraeApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            LayoutMenu(model: model)
+            LayoutMenu(model: model, windows: delegate.windows)
         } label: {
             MenuBarIcon(windows: delegate.windows)
         }
