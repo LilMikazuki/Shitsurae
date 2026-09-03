@@ -36,7 +36,7 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
 ## The menu bar
 
 - [ ] After launch the icon appears at the right of the menu bar.
-- [ ] The app icon appears in the Dock and in the ⌘Tab switcher.
+- [ ] The app has **no** Dock tile and **no** ⌘Tab slot — it lives in the menu bar alone.
 - [ ] `Quit Shitsurae` quits the app.
 - [ ] `Settings…` opens the settings window in front of other windows, on the first click —
       try it several times from different frontmost apps, because the failure it replaces was
@@ -44,8 +44,8 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
       lives only in the status-item menu fires but leaves the window behind, and the main-menu
       command that would carry one was not built. Clicking the item and clicking the Dock tile
       are the two ways in.
-- [ ] With no windows open, clicking Shitsurae's tile in the Dock opens the settings window in
-      front of other windows.
+- [ ] With no windows open, double-clicking the app in Finder while it is already running opens
+      the settings window in front of other windows. There is no Dock tile to click.
 - [ ] With no layouts, the menu shows a hint that cannot be clicked.
 - [ ] Clicking a layout restarts the Dock and moves the checkmark to it.
 - [ ] Every row's title starts at the same left edge, checked or not.

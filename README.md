@@ -2,8 +2,8 @@
 
 A macOS app that saves your Dock as named layouts and switches between them from
 the menu bar, from the settings window, or with a global hotkey. It lives in the
-menu bar, and also takes a Dock tile and a ⌘Tab slot so its settings window
-behaves like any other app's.
+menu bar alone: no Dock tile, no ⌘Tab slot. The settings window is opened from
+the menu.
 
 *Shitsurae* (しつらえ) is the Japanese practice of arranging a space for the
 occasion at hand. Work, personal, screen sharing — each gets its own Dock.

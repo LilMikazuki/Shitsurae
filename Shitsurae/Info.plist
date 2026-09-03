@@ -23,7 +23,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>LSUIElement</key>
-	<false/>
+	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT License</string>
 </dict>
