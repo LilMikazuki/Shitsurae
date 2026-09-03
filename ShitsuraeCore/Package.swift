@@ -11,7 +11,7 @@ let package = Package(
     ],
     // The project's only third-party dependency: global hotkeys.
     dependencies: [
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0")
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "3.0.1")
     ],
     targets: [
         .target(name: "ShitsuraeCore"),
