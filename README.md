@@ -1,5 +1,7 @@
 # Shitsurae
 
+![Shitsurae settings window showing four saved layouts and a Dock preview](.github/images/screenshot.png)
+
 A macOS app that saves your Dock as named layouts and switches between them from
 the menu bar, from the settings window, or with a global hotkey. It lives in the
 menu bar alone: no Dock tile, no ⌘Tab slot. The settings window is opened from
