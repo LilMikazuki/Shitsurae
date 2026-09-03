@@ -57,8 +57,8 @@ The dependency direction is one-way: the app depends on the kit, the kit depends
 on the core, and nothing depends on the app.
 
 `ShitsuraeCore` is the part worth reusing on its own — it reads and writes the
-Dock's preferences domain, backs it up and restarts the Dock, and knows nothing
-about layouts. `ShitsuraeKit` exists for this app: it is a Swift package target
+Dock's preferences domain and restarts the Dock, and knows nothing about
+layouts. `ShitsuraeKit` exists for this app: it is a Swift package target
 only because the app is a separate module, its public symbols are public for
 that reason alone, and its shape will follow the app rather than any outside
 consumer.
@@ -109,6 +109,7 @@ Commands:
                            --json prints a DockState JSON document instead
   apply <file> [--dry-run] Apply a DockState JSON file; --dry-run prints the
                            result without touching the real Dock
+  --help, -h               Print this message
 ```
 
 ## Known limits

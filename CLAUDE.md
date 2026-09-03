@@ -157,7 +157,9 @@ review lived there. Two rules, both mechanically enforced by
   `anEditTheStoreRefusedIsNotShownAndThenTakenBack`.
 - **The app icon must be full-bleed and resized with `sips`.** macOS 26 treats a
   PNG drawn through our own `NSBitmapImageRep` as a legacy icon and puts a light
-  plate behind it in the Dock. See `Design/make-appicon.swift`.
+  plate behind it. The app is `LSUIElement`, so the icon never appears in the
+  Dock — Finder, Spotlight and the ⌘Tab-less About box are where it shows.
+  See `Design/make-appicon.swift`.
 
 ## Verifying UI work
 
@@ -165,3 +167,15 @@ SwiftUI layout claims are cheap to measure and expensive to guess. Host the view
 in an `NSHostingView`, read `intrinsicContentSize`, or render it with
 `cacheDisplay(in:to:)` and look at the PNG. Measuring settles questions like "is
 this text clipped" and "does this row change height" in seconds.
+
+A `List` is the exception, and it wasted an afternoon once: offscreen
+`cacheDisplay` renders it blank because `NSTableView` needs a window,
+`fittingSize` returns zero, and measuring a row's `Text` outside the list
+answers a different question than the one you asked. Put the list in a real
+`NSWindow` and spin the run loop.
+
+Behaviour claims about AppKit deserve the same treatment. `NSApplication.activate()`
+is cooperative and documented not to guarantee activation; whether a run-loop
+block runs under a modal or a tracking menu is a fact, not a guess. A scratch
+binary with timestamped log lines settles these in minutes, and this repository
+has been wrong twice from reasoning about them instead.
