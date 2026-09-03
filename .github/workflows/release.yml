@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag against Info.plist
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(plutil -extract CFBundleShortVersionString raw Shitsurae/Info.plist)"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag v$tag does not match CFBundleShortVersionString $version in Shitsurae/Info.plist" >&2
+            exit 1
+          fi
+
+      - name: Install SwiftFormat and XcodeGen
+        run: brew install swiftformat xcodegen
+
+      - name: Tool versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swiftformat --version
+          xcodegen --version
+
+      - name: Check formatting
+        run: swiftformat --lint .
+
+      - name: Tests
+        working-directory: ShitsuraeCore
+        run: swift test
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      - name: Build the app
+        run: |
+          xcodebuild -project Shitsurae.xcodeproj \
+            -scheme Shitsurae \
+            -configuration Release \
+            -derivedDataPath build \
+            build
+
+      - name: Verify the signature
+        run: codesign --verify --deep --strict --verbose=2 build/Build/Products/Release/Shitsurae.app
+
+      - name: Package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/Build/Products/Release/Shitsurae.app \
+            "Shitsurae-$version.zip"
+          shasum -a 256 "Shitsurae-$version.zip" > "Shitsurae-$version.zip.sha256"
+          cat "Shitsurae-$version.zip.sha256"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "Shitsurae-$version.zip" \
+            "Shitsurae-$version.zip.sha256" \
+            --verify-tag \
+            --title "Shitsurae $version" \
+            --generate-notes
