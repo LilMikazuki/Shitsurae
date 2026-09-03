@@ -203,7 +203,8 @@ git tag v1.1 && git push origin v1.1
 
 The [release workflow](.github/workflows/release.yml) refuses a tag that does
 not match the version in `Info.plist`, runs the same checks as CI, builds the
-app in Release, and publishes the zip and its SHA-256 on the Releases page.
+app in Release, and publishes the zip on the Releases page, where GitHub
+shows its SHA-256.
 
 ## License
 
