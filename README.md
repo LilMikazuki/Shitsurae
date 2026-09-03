@@ -19,6 +19,7 @@ occasion at hand. Work, personal, screen sharing — each gets its own Dock.
   with unsaved work can still stop you.
 - **Edit a layout in place** — drag tiles to reorder, drop an app from Finder to
   add it, remove one from the tile's context menu.
+
 On first launch Shitsurae saves whatever is in your Dock as a layout called
 `Dock 1`, so applying it later puts the Dock back the way you found it. It also
 tells you plainly whether a failure left your Dock alone or already changed it.
@@ -28,6 +29,59 @@ tells you plainly whether a failure left your Dock alone or already changed it.
 - macOS 26 (Tahoe) or later
 - Apple Silicon
 - Xcode 26 or later to build
+
+## Installing
+
+Each release on the [Releases](https://github.com/LilMikazuki/Shitsurae/releases)
+page is a zip archive holding `Shitsurae.app`. Unzip it and move the app to
+`Applications`.
+
+The app is signed ad hoc and not notarized, so Gatekeeper stops the first launch:
+macOS says it cannot verify the app and offers to move it to the Bin. Close that
+dialog, open System Settings → Privacy & Security, scroll to the line about
+Shitsurae and click **Open Anyway**. Or clear the quarantine flag once:
+
+```bash
+xattr -d com.apple.quarantine /Applications/Shitsurae.app
+```
+
+Shitsurae asks for no permissions — no Accessibility, no Automation — and never
+uses the network. To build it from source instead, see [Building](#building).
+
+## Getting around
+
+Shitsurae has three places: the menu, the save dialog and the settings window.
+
+**The menu** drops from the icon at the right of the menu bar. It lists your
+layouts, with a checkmark on the one your Dock holds now and each layout's
+hotkey beside its name, then *Save Current Dock as Layout…*, *Settings…* and
+*Quit Shitsurae*. Clicking a layout applies it: the Dock blinks once and comes
+back rearranged.
+
+**The save dialog** asks for a name and suggests `Layout N`. Return saves, Esc
+cancels; an empty name, or one already taken, is refused with a reason.
+
+**The settings window** is a sidebar and a page.
+
+- The sidebar lists the layouts, with an *Active* badge on the applied one, a
+  *General* row at the bottom and *New Layout* under the list. Arrow keys move
+  the selection and Return renames; right-click a layout for *Apply*, *Rename*
+  and *Delete*.
+- A layout's page starts with the Dock strip: drag a tile to reorder, right-click
+  it for *Move Left*, *Move Right* and *Remove from Layout*, press the `+` tile
+  to pick applications, or drop them in from Finder. An application that is no
+  longer on disk is dimmed with a dashed border and left out when the layout is
+  applied. Below the strip: *Apply to Dock*, when the layout was last used, how
+  many apps it holds, the *Hotkey* pill and the *Auto-Quit Apps* switch.
+- The hotkey pill records on click: press a combination with ⌘ or ⌥ and release
+  the keys to save it; ⌫ clears, Esc cancels. A combination another layout
+  already uses names that layout instead of taking it over. Right-click the pill
+  to clear the shortcut.
+- *General* holds *Launch at login*, the folder your layouts live in, and the
+  version.
+
+A hotkey applies its layout from any application, with the settings window open
+or not.
 
 ## Building
 
