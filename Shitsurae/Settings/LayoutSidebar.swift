@@ -39,7 +39,6 @@ struct LayoutSidebar: View {
                     ForEach(model.layouts) { layout in
                         row(layout)
                             .tag(SettingsPage.layout(layout.id))
-                            .renameAction { startRename(layout) }
                     }
                 }
             }
@@ -71,7 +70,7 @@ struct LayoutSidebar: View {
     @ViewBuilder
     private func layoutMenu(for selected: SettingsPage?) -> some View {
         if case let .layout(id) = selected,
-           model.layouts.contains(where: { $0.id == id })
+           let layout = model.layouts.first(where: { $0.id == id })
         {
             Button("Apply") {
                 Task {
@@ -80,7 +79,9 @@ struct LayoutSidebar: View {
             }
             .disabled(id == model.activeLayoutID || model.isChangingDock)
 
-            RenameButton()
+            Button("Rename") {
+                startRename(layout)
+            }
 
             Divider()
 

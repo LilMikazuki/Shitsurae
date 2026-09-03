@@ -98,8 +98,9 @@ one on screen. Turn it off again when you are done testing.
 - [ ] The `ACTIVE` badge sits on the applied layout and stays readable on both a
       selected and an unselected row.
 - [ ] Arrow keys move the selection; Return starts renaming.
-- [ ] Right-click offers Apply (disabled when already applied), Rename… and a red
-      Delete….
+- [ ] Right-click offers Apply (disabled when already applied), Rename and a red
+      Delete. Rename opens the editing field — a menu item that is enabled and does
+      nothing is what this catches; Return on a selected row opens it too.
 - [ ] Renaming to an existing name keeps the field open and says why; Esc cancels.
 - [ ] A long name truncates with an ellipsis and the row does not grow.
 - [ ] Deleting the active layout clears the `ACTIVE` badge.
