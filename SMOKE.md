@@ -230,7 +230,7 @@ Run this in a Terminal for the whole session below. `--level debug` so nothing i
 shortcut-registration count is the only `debug` line, and `--level info` would hide it.
 
 ```bash
-log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"' --level debug
+log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae" AND process == "Shitsurae"' --level debug
 ```
 
 This section is the only check that the live logger reaches the unified log at all. No test can

@@ -80,14 +80,18 @@ Shitsurae logs what it does and every failure it meets to the unified log, under
 the subsystem `io.github.lilmikazuki.Shitsurae`. To see the last hour:
 
 ```bash
-log show --last 1h --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"'
+log show --last 1h --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae" AND process == "Shitsurae"'
 ```
 
 or, to watch it live while reproducing something:
 
 ```bash
-log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae"'
+log stream --predicate 'subsystem == "io.github.lilmikazuki.Shitsurae" AND process == "Shitsurae"'
 ```
+
+The `process` clause keeps the test suite out: `swift test` builds layout stores and
+models that log through the same subsystem, and without it a run adds over a hundred
+lines to what you are reading.
 
 Layout names never appear there — a layout is identified by its id, which is also
 its file name. Paths, bundle ids, Dock keys and error descriptions do, so the
