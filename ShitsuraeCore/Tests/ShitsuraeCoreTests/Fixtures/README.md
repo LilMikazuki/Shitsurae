@@ -7,9 +7,10 @@ The `com.apple.dock` domain taken from a live machine: macOS 26.5.2 (build
 `defaults export com.apple.dock`.
 
 **Sanitised.** Only stock Apple applications were kept in `persistent-apps`; ten
-third-party entries were removed. The remaining four are byte-for-byte as they
-came, `book` blobs included — nothing was synthesised. All 20 top-level keys are
-present.
+third-party entries were removed. The remaining four are as they came, `book`
+blobs included, with one edit: the boot volume's UUID inside each blob is replaced
+by zeros of the same length, so the bookmark structure is untouched. Nothing else
+was synthesised. All 20 top-level keys are present.
 
 What this fixture exists to prove:
 
