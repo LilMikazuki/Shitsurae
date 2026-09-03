@@ -31,7 +31,8 @@ targets:
         INFOPLIST_FILE: Shitsurae/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         MACOSX_DEPLOYMENT_TARGET: "26.0"
-        SWIFT_VERSION: "6.0"
+        # Language mode, not the toolchain: swiftc accepts 4, 4.2, 5 and 6.
+        SWIFT_VERSION: "6"
         SWIFT_STRICT_CONCURRENCY: complete
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_IDENTITY: "-"
