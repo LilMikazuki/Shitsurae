@@ -51,6 +51,7 @@ public extension ShitsuraeAlertKind {
     var title: String {
         switch self {
         case .saveFailed: "Shitsurae couldn't save this layout"
+        case .deleteFailed: "Shitsurae couldn't delete this layout"
         case let .delete(_, name): "Delete layout \"\(name)\"?"
         case let .failure(failure): failure.title
         }
@@ -59,7 +60,15 @@ public extension ShitsuraeAlertKind {
     var message: String {
         switch self {
         case .saveFailed:
-            "Your Dock was not changed. Check that ~/Library/Application Support is writable."
+            """
+            Your Dock was not changed. Check that \
+            ~/Library/Application Support/Shitsurae/layouts is writable.
+            """
+        case .deleteFailed:
+            """
+            It's still in your list, and your Dock was not changed. Check that \
+            ~/Library/Application Support/Shitsurae/layouts is writable.
+            """
         case .delete:
             "This can't be undone."
         case let .failure(failure):
@@ -69,7 +78,7 @@ public extension ShitsuraeAlertKind {
 
     var confirmTitle: String {
         switch self {
-        case .saveFailed: "OK"
+        case .saveFailed, .deleteFailed: "OK"
         case .delete: "Delete"
         case .failure: "OK"
         }
@@ -77,7 +86,7 @@ public extension ShitsuraeAlertKind {
 
     var hasCancel: Bool {
         switch self {
-        case .failure, .saveFailed: false
+        case .failure, .saveFailed, .deleteFailed: false
         case .delete: true
         }
     }

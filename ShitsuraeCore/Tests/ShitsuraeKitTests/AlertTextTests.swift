@@ -76,9 +76,12 @@ private let everyFailure: [ShitsuraeFailure] = [
     #expect(refused.message.contains("killall Dock"))
 }
 
-@Test func aLayoutThatCannotBeSavedIsNotReportedAsADockFailure() {
-    let saveFailed = ShitsuraeAlertKind.saveFailed
-    #expect(saveFailed.message.lowercased().contains("dock was not changed"))
-    #expect(!saveFailed.hasCancel)
-    #expect(!saveFailed.isDestructive)
+@Test func aLayoutStoreFailureIsNotReportedAsADockFailure() {
+    for kind in [ShitsuraeAlertKind.saveFailed, .deleteFailed] {
+        #expect(kind.message.lowercased().contains("dock was not changed"))
+        #expect(kind.message.contains("Application Support/Shitsurae/layouts"))
+        #expect(!kind.hasCancel)
+        #expect(!kind.isDestructive)
+        #expect(!kind.title.hasSuffix("."))
+    }
 }

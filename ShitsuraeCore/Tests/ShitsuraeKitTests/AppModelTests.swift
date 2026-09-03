@@ -935,3 +935,27 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
 
     #expect(model.alert == nil)
 }
+
+@Test @MainActor func aDeleteTheUserConfirmedButTheStoreRefusedSaysSo() async throws {
+    let (model, store, _) = try makeModel(layouts: [testLayout("Work")])
+    let work = try #require(model.layouts.first).id
+    await model.apply(id: work)
+    model.page = .layout(work)
+    model.askDelete()
+    let shown = try #require(model.alert)
+    _ = model.beginPresenting()
+
+    try FileManager.default.setAttributes(
+        [.posixPermissions: 0o555], ofItemAtPath: store.directory.path
+    )
+    defer {
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: store.directory.path
+        )
+    }
+    await model.confirmAlert(shown)
+
+    #expect(model.alert == .deleteFailed)
+    #expect(model.layouts.map(\.name) == ["Work"])
+    #expect(model.activeLayoutID == work)
+}

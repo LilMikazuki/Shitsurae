@@ -38,6 +38,7 @@ public enum SettingsPage: Hashable, Sendable {
 
 public enum ShitsuraeAlertKind: Equatable, Sendable {
     case saveFailed
+    case deleteFailed
     case delete(id: UUID, name: String)
     case failure(ShitsuraeFailure)
 }
@@ -248,6 +249,7 @@ public final class AppModel {
         do {
             try store.delete(id: id)
         } catch {
+            raise(.deleteFailed)
             return
         }
         shortcuts.clear(for: id)
@@ -419,7 +421,7 @@ public final class AppModel {
         switch kind {
         case let .delete(id, _):
             delete(id: id)
-        case .failure, .saveFailed:
+        case .failure, .saveFailed, .deleteFailed:
             break
         }
     }
