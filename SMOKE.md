@@ -42,7 +42,7 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
       try it several times from different frontmost apps, because the failure it replaces was
       intermittent rather than constant. It has no key equivalent: a shortcut on an item that
       lives only in the status-item menu fires but leaves the window behind, and the main-menu
-      command that would carry one was not built. Clicking the item and clicking the Dock tile
+      command that would carry one was not built. Clicking the item and reopening the app from Finder
       are the two ways in.
 - [ ] With no windows open, double-clicking the app in Finder while it is already running opens
       the settings window in front of other windows. There is no Dock tile to click.
@@ -53,8 +53,8 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
 
 ## Auto-Quit
 
-Auto-Quit lives on the layout screen and applies to every layout, not just the
-one on screen. Turn it off again when you are done testing.
+Auto-Quit is a switch on each layout's screen and belongs to that layout alone:
+turning it on for one layout leaves the others off.
 
 - [ ] With it on, applying a layout asks the applications outside that layout to
       quit, and leaves Finder and Shitsurae alone.
@@ -91,16 +91,17 @@ one on screen. Turn it off again when you are done testing.
 
 ## The settings window
 
-- [ ] ⌘, opens it in front of other windows; closing it does not quit the app.
+- [ ] `Settings…` in the menu opens it in front of other windows; closing it does not quit
+      the app.
 - [ ] The window can be resized and does not clip its contents at the minimum.
-- [ ] The gear in the sidebar footer opens General and shows a filled background
-      while it is open; selecting a layout returns to the layout screen.
+- [ ] The `General` row at the bottom of the sidebar opens General; selecting a layout
+      returns to the layout screen.
 
 ## The layout list
 
 - [ ] Exactly one row is highlighted, and the highlight is the system's — no
       second bar bleeding around it.
-- [ ] The `ACTIVE` badge sits on the applied layout and stays readable on both a
+- [ ] The `Active` badge sits on the applied layout and stays readable on both a
       selected and an unselected row.
 - [ ] Arrow keys move the selection; Return starts renaming.
 - [ ] Right-click offers Apply (disabled when already applied), Rename and a red
@@ -108,7 +109,7 @@ one on screen. Turn it off again when you are done testing.
       nothing is what this catches; Return on a selected row opens it too.
 - [ ] Renaming to an existing name keeps the field open and says why; Esc cancels.
 - [ ] A long name truncates with an ellipsis and the row does not grow.
-- [ ] Deleting the active layout clears the `ACTIVE` badge.
+- [ ] Deleting the active layout clears the `Active` badge.
 - [ ] A layout file copied into `~/Library/Application Support/Shitsurae/layouts` under another
       name appears after the settings window is opened, without a relaunch, and can then be
       renamed and deleted like any other.
@@ -122,7 +123,8 @@ one on screen. Turn it off again when you are done testing.
 
 ## The layout screen
 
-- [ ] The name, the last-used line and the Apply pill are centred as one block.
+- [ ] The first card holds Apply to Dock, Last used and Apps in layout; the second holds
+      Hotkey and Auto-Quit Apps.
 - [ ] Apply is disabled and reads "Applied" for the layout already in the Dock.
 - [ ] Pressing Apply restarts the Dock and the pill becomes "Applied" without
       any other interaction.
@@ -182,7 +184,7 @@ one on screen. Turn it off again when you are done testing.
 - [ ] A layout that cannot be deleted: `chmod u-w ~/Library/Application\ Support/Shitsurae/layouts`,
       Delete a layout, confirm. The alert says the layout is still in the list, that the Dock was
       not changed, and names the very directory you just made read-only; the row stays, and the
-      `ACTIVE` badge stays if it had it. Undo with `chmod u+w` on the same directory.
+      `Active` badge stays if it had it. Undo with `chmod u+w` on the same directory.
 - [ ] Esc cancels a deletion.
 - [ ] A Dock with a separator produces the separator alert, not the "format
       changed" one. Set it up with `defaults write com.apple.dock persistent-apps
@@ -194,7 +196,7 @@ one on screen. Turn it off again when you are done testing.
 - [ ] `writtenButNotApplied` — freeze the Dock with `kill -STOP $(pgrep -x Dock)`, then apply a
       different layout from the menu. The menu's layout rows stay disabled while Shitsurae waits;
       after about five seconds expect "Your Dock was changed but not applied" with the
-      `killall Dock` advice, the `ACTIVE` badge does not move and the pill does not read
+      `killall Dock` advice, the `Active` badge does not move and the pill does not read
       "Applied". Thaw with `kill -CONT $(pgrep -x Dock)`: the Dock processes the queued quit,
       comes back and shows the new layout. Press Apply again — the layout is not marked active,
       so this is a real apply: the Dock blinks and the pill turns "Applied".
@@ -268,7 +270,7 @@ Increase Contrast. Where to turn them on:
 
 - [ ] The menu is readable in all of them, both with layouts and empty.
 - [ ] The save dialog, including the red error line, is readable in all of them.
-- [ ] The sidebar: selected row, `ACTIVE` badge, footer.
+- [ ] The sidebar: selected row, `Active` badge, footer.
 - [ ] The layout screen: the controls card is distinct from the window behind it,
       and the dashed border of a missing app is visible.
 - [ ] General: the Launch at login caption and the storage line at the bottom.
