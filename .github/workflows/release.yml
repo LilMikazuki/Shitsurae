@@ -61,21 +61,16 @@ jobs:
 
       - name: Package
         run: |
-          version="${GITHUB_REF_NAME#v}"
           ditto -c -k --sequesterRsrc --keepParent \
             build/Build/Products/Release/Shitsurae.app \
-            "Shitsurae-$version.zip"
-          shasum -a 256 "Shitsurae-$version.zip" > "Shitsurae-$version.zip.sha256"
-          cat "Shitsurae-$version.zip.sha256"
+            "Shitsurae-${GITHUB_REF_NAME#v}.zip"
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" \
-            "Shitsurae-$version.zip" \
-            "Shitsurae-$version.zip.sha256" \
+          gh release create "$GITHUB_REF_NAME" "Shitsurae-$version.zip" \
             --verify-tag \
             --title "Shitsurae $version" \
             --generate-notes
