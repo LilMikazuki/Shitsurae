@@ -25,6 +25,7 @@ struct ShitsuraeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model: AppModel
     @State private var alertPresenter: AlertPresenter
+    @State private var positionObserver: DockPositionObserver?
 
     init() {
         LayoutStore.migrateLegacyDirectory()
@@ -35,11 +36,19 @@ struct ShitsuraeApp: App {
         let model = AppModel(store: store, switcher: switcher)
         model.reload()
         model.seedInitialLayoutIfNeeded()
+        model.adoptDockPosition()
         model.shortcuts.onTrigger { [weak model] id in
             Task { await model?.apply(id: id) }
         }
+        let positionObserver = DockPositionObserver { [weak model] in
+            Task { @MainActor in model?.adoptDockPosition() }
+        }
+        if positionObserver == nil {
+            SystemEventLog().record(.error, .dock, "Watching the Dock's position could not start")
+        }
         _model = State(initialValue: model)
         _alertPresenter = State(initialValue: AlertPresenter(model: model))
+        _positionObserver = State(initialValue: positionObserver)
     }
 
     var body: some Scene {

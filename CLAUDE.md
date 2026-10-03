@@ -69,7 +69,8 @@ review lived there. Two rules, both mechanically enforced by
   Every content edit has to run through `mutate`, which saves, replaces the
   layout in the list and clears the applied mark, so splitting the editor out
   would hand a new type the store, the marker and the list — most of the model's
-  collaborators, for a thicker seam.
+  collaborators, for a thicker seam. The one content change that does not is
+  `adoptDockPosition`; the invariants below say why.
   Eight review passes attributed no defect to its size.
 - **The app target has no tests.** The logic that can be tested lives in the
   package; what remains in the views is layout and wiring. `TileDrag` and
@@ -98,6 +99,8 @@ review lived there. Two rules, both mechanically enforced by
 - **The user's way back is `Dock 1`, not a backup.** The seed captures the
   untouched Dock at first launch, and applying it restores every key the app can
   write, because a layout stores all seven and `nil` clears rather than skips.
+  Its position follows the Dock like any applied layout's: moved while `Dock 1`
+  was applied, the Dock comes back where it was moved, not where it first stood.
   Pinned by `applyingASavedStateAgainPutsBackEverySettingTheAppCanChange`.
 - **A layout is shown from one file, and that file is the one `save` and
   `delete` address.** `<id>.json` wins over any other file holding the same id,
@@ -144,6 +147,17 @@ review lived there. Two rules, both mechanically enforced by
   saves the layout without going through `mutate`, so toggling it leaves the
   active mark alone: the Dock still holds that layout. Pinned by
   `turningAutoQuitOnKeepsTheActiveLayoutActive`.
+- **The applied layout follows the Dock's position.** `DockPositionObserver`
+  watches the `orientation` key, and `adoptDockPosition()` copies a changed
+  position into the layout that carries the active mark — at launch too, for a
+  move made while the app was not running. It saves without going through
+  `mutate`: the Dock moved first and still holds the layout, so the mark stays.
+  The app's own writes arrive while `isChangingDock` is up and are dropped;
+  without that, every switch would hand the new layout's position to the one
+  being left. With no mark, a move is recorded nowhere. Pinned by
+  `aLayoutReturnedToAfterItsDockWasMovedDoesNotMoveTheDockBack`,
+  `switchingLayoutsDoesNotRewriteTheLayoutBeingLeft` and
+  `rememberingAMoveKeepsTheLayoutActiveAndDoesNotCountAsUsingIt`.
 - **The settings window shows what `AppModel.page` says, and nothing else.**
   `.layout(id)` or `.general`, `nil` for neither; `selectedLayout` is derived
   from it. Saving moves the page, applying moves it only when a layout page is
