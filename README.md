@@ -16,6 +16,8 @@ occasion at hand. Work, personal, screen sharing — each gets its own Dock.
   Dock's own settings — position, tile size, magnification and its size,
   auto-hide, and whether recent applications are shown.
 - **Switch layouts** from the menu bar, or bind a global hotkey to each one.
+- **Move the Dock and the layout remembers.** Change the Dock's position while
+  a layout is applied and that layout keeps the new position for next time.
 - **Optionally quit what you left behind.** With Auto-Quit on for a layout,
   applying it asks the applications outside it to quit — politely, so anything
   with unsaved work can still stop you.
@@ -23,8 +25,9 @@ occasion at hand. Work, personal, screen sharing — each gets its own Dock.
   add it, remove one from the tile's context menu.
 
 On first launch Shitsurae saves whatever is in your Dock as a layout called
-`Dock 1`, so applying it later puts the Dock back the way you found it. It also
-tells you plainly whether a failure left your Dock alone or already changed it.
+`Dock 1`, so applying it later puts the Dock back the way you found it — at the
+position you last moved it to while `Dock 1` was applied. It also tells you
+plainly whether a failure left your Dock alone or already changed it.
 
 ## Requirements
 

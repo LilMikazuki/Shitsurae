@@ -12,6 +12,12 @@ Everything below is recoverable — `swift run shitsurae-cli apply original.json
 puts the Dock back the way it was — and the app itself keeps a way back, because
 the first launch saves your untouched Dock as the layout `Dock 1`.
 
+The app takes a position written from outside for a move. With a layout applied,
+`shitsurae-cli apply` or `defaults write com.apple.dock orientation` changes the
+position that layout stores, `Dock 1` included — at once if the app is running, at
+its next launch if it is not. Applying `original.json` hands its position to the
+applied layout in the same way.
+
 ## Core, through the CLI
 
 1. **Read** — `swift run shitsurae-cli dump` lists every app currently in your
@@ -27,7 +33,8 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
    is still there after applying.
 5. **Settings** — change `tilesize` in the JSON, apply, and confirm the icons
    change size. Confirm keys that were absent from your domain are still absent
-   afterwards: `defaults read com.apple.dock orientation` should still error.
+   afterwards: on a Dock that was never moved,
+   `defaults read com.apple.dock orientation` should still error.
 6. **Two applies in a row both hold** — make `other.json` from `state.json` with the last two
    apps swapped, then `swift run shitsurae-cli apply other.json; sleep 1; swift run shitsurae-cli
    apply state.json`. Both exit zero, and six seconds later `dump` shows the order from
@@ -69,6 +76,24 @@ turning it on for one layout leaves the others off.
 - [ ] An application with unsaved work can still refuse, and nothing else breaks.
 - [ ] A failed apply quits nothing.
 - [ ] The setting survives quitting and relaunching the app.
+
+## The Dock's position
+
+A layout remembers where the Dock was moved while it was applied. Keep the command from the
+Console section running alongside these.
+
+- [ ] With a layout applied, move the Dock in System Settings → Desktop & Dock → Position on
+      screen. Switch to another layout and back: the Dock is where you moved it. The log holds
+      one `layouts` notice with the layout id, ending in `took the Dock's position:` and the
+      position.
+- [ ] The same, moving the Dock through its own menu: Control-click the divider → Position on
+      Screen.
+- [ ] Quit Shitsurae, move the Dock, launch Shitsurae. The notice appears at launch. Switch to
+      another layout and back: the Dock is where you moved it.
+- [ ] Remove a tile from the applied layout without pressing Apply, then move the Dock. No notice
+      appears, and Apply puts the Dock back at the position the layout stores.
+- [ ] Switch several times between two layouts that hold different positions. No
+      `took the Dock's position` notice appears: the app's own writes are not moves.
 
 ## Launch at login
 
@@ -253,8 +278,10 @@ see it: the recording fake is handed each message before `os.Logger` is.
       `hotkeys` debug count appears too — `register` runs on every reload — which is how you can
       tell `--level debug` took.
 - [ ] The `unsupportedSetting` scenario under Alerts writes a `dock` error whose reason is
-      `unsupportedSetting` and whose error names both the key and the value. One line, from
-      `saveCurrentDock`'s read catch — not one per throw.
+      `unsupportedSetting` and whose error names both the key and the value. With no layout
+      applied that is one line, from `saveCurrentDock`'s read catch — not one per throw. With a
+      layout applied a second line comes first: the unknown value is itself a change of the
+      position, and `adoptDockPosition` fails to read it.
 - [ ] With the Dock frozen, the failed apply writes one `dock` error naming `writtenButNotApplied`
       and no "Applied layout" notice.
 - [ ] The refused delete above writes a `layouts` error with the layout id.
