@@ -4,7 +4,8 @@ import Testing
 
 @MainActor
 private func makeLoggedModel(
-    layouts: [DockLayout] = []
+    layouts: [DockLayout] = [],
+    engine: FakeDockEngine = FakeDockEngine()
 ) throws -> (AppModel, LayoutStore, RecordingEventLog) {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("shitsurae-logging-\(UUID().uuidString)")
@@ -14,7 +15,7 @@ private func makeLoggedModel(
 
     let model = AppModel(
         store: store,
-        switcher: SwitchService(engine: FakeDockEngine()),
+        switcher: SwitchService(engine: engine),
         marker: ActiveLayoutMarker(defaults: temporaryDefaults()),
         shortcuts: ShortcutRecorder(hotkeys: InMemoryHotkeys(), log: log),
         log: log
@@ -66,4 +67,17 @@ private func unsealed(_ directory: URL) {
 
     #expect(log.messages.contains { $0.contains(id.uuidString) })
     #expect(!log.messages.contains { $0.contains(name) })
+}
+
+@Test @MainActor func anApplyThatHadToBeRepeatedSaysSoInTheLog() async throws {
+    let engine = FakeDockEngine()
+    engine.attempts = 2
+    let (model, _, log) = try makeLoggedModel(layouts: [testLayout("Work")], engine: engine)
+    let id = try #require(model.layouts.first).id
+
+    await model.apply(id: id)
+
+    let applied = try #require(log.messages(.notice, .dock).last)
+    #expect(applied.contains("written 2 times"))
+    #expect(model.activeLayoutID == id)
 }

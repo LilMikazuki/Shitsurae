@@ -62,10 +62,18 @@ case let .apply(file, dryRun):
             print("Applied. The Dock will pick it up.")
         }
     } catch let DockError.restart(error) {
-        fail("""
-        The Dock layout was written, but the Dock did not restart: \(error)
-        Run `killall Dock` to finish applying it.
-        """)
+        switch error {
+        case .terminateRefused:
+            fail("""
+            The Dock layout was written, but the Dock did not restart: \(error)
+            Run `killall Dock` to finish applying it.
+            """)
+        case .overwritten:
+            fail("""
+            The Dock layout was written, but it did not hold: \(error)
+            Apply it again in a few seconds.
+            """)
+        }
     } catch {
         fail("Failed to apply: \(error)")
     }

@@ -10,6 +10,7 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
     private nonisolated(unsafe) var _applyError: DockError?
     private nonisolated(unsafe) var _readCount = 0
     private nonisolated(unsafe) var _applied: [DockState] = []
+    private nonisolated(unsafe) var _attempts = 1
 
     var stateToReturn: DockState {
         get { lock.withLock { _stateToReturn } }
@@ -24,6 +25,11 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
     var applyError: DockError? {
         get { lock.withLock { _applyError } }
         set { lock.withLock { _applyError = newValue } }
+    }
+
+    var attempts: Int {
+        get { lock.withLock { _attempts } }
+        set { lock.withLock { _attempts = newValue } }
     }
 
     var readCount: Int {
@@ -45,7 +51,8 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
         return stateToReturn
     }
 
-    func apply(_ state: DockState) throws(DockError) {
+    @discardableResult
+    func apply(_ state: DockState) throws(DockError) -> DockApplyOutcome {
         let thrown: DockError? = lock.withLock {
             if let _applyError {
                 return _applyError
@@ -56,14 +63,14 @@ final class FakeDockEngine: DockApplying, @unchecked Sendable {
         if let thrown {
             throw thrown
         }
+        return .written(attempts: attempts)
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> DockApplyOutcome {
         let current = try read()
-        guard state != current else { return false }
-        try apply(state)
-        return true
+        guard state != current else { return .alreadyHeld }
+        return try apply(state)
     }
 }
 

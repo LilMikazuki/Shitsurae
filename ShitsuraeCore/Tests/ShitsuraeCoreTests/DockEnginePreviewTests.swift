@@ -4,6 +4,7 @@ import Testing
 
 private final class SilentRestarter: DockRestarting {
     func restart() throws(DockRestartError) {}
+    func waitUntilRunning() {}
 }
 
 private func previewEngine(_ store: DockPreferenceStore) -> DockEngine {

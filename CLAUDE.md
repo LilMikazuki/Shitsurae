@@ -92,7 +92,9 @@ review lived there. Two rules, both mechanically enforced by
   message promises the user that nothing was touched, so every error thrown
   after a write has to map to that one case. Pinned by
   `onlyWrittenButNotAppliedAdmitsTheDockChanged` and
-  `everyReasonThrownAfterTheDomainIsWrittenAdmitsIt`.
+  `everyReasonThrownAfterTheDomainIsWrittenAdmitsIt`. The case carries the
+  `DockRestartError` behind it, which picks the wording: `killall Dock` finishes
+  the job only when a running Dock refused to quit.
 - **The user's way back is `Dock 1`, not a backup.** The seed captures the
   untouched Dock at first launch, and applying it restores every key the app can
   write, because a layout stores all seven and `nil` clears rather than skips.
@@ -118,6 +120,21 @@ review lived there. Two rules, both mechanically enforced by
   merely invisible: the running Dock overwrites it from memory, so the layout is
   lost rather than delayed. Nothing may be inserted between the write and
   `restarter.restart()` in `DockEngine.apply`.
+- **A restart is not proof that the Dock took the write.** A Dock started from
+  tiles the app wrote holds them unsaved for about four seconds, and asked to
+  quit in that time it saves its own tiles over the write on the way out — tiles
+  only, a setting written alongside survived. So `DockEngine` reads the domain
+  back once the old Dock is gone and writes again, three times at most, before
+  throwing `overwritten`. A Dock started from tiles it saved itself has nothing
+  to save, which is why the second write holds. Tiles are compared by path: the
+  Dock later rewrites labels in the system language. Measured on 2026-10-03;
+  pinned by `aDockThatSavesItsOwnTilesOnTheWayOutDoesNotUndoTheApply` and
+  `aLabelTheDockRewroteDoesNotCountAsItsOwnTiles`.
+- **A Dock that has only just started cannot be asked to quit.** For its first
+  50-100 ms `terminate()` answers `false`, the request is lost and the Dock
+  stays. `DockRestarter` asks again until it is taken. A Dock that lived under a
+  second comes back about a second later, not at once. Pinned by
+  `aDockTooYoungToTakeTheRequestIsAskedAgainUntilItDoes`.
 - **A layout that cannot be written to disk is not a Dock failure.** It raises
   `ShitsuraeAlertKind.saveFailed` — or `deleteFailed`, when the file could not
   be removed — whose text promises the Dock is untouched, which it is, because

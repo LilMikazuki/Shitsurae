@@ -3,8 +3,8 @@ import ShitsuraeCore
 
 public protocol DockApplying: Sendable {
     func read() throws(DockError) -> DockState
-    func apply(_ state: DockState) throws(DockError)
-    @discardableResult func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool
+    @discardableResult func apply(_ state: DockState) throws(DockError) -> DockApplyOutcome
+    @discardableResult func applyIfNeeded(_ state: DockState) throws(DockError) -> DockApplyOutcome
 }
 
 extension DockEngine: DockApplying {}

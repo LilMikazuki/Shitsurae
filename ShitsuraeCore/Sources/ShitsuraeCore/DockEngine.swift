@@ -1,6 +1,13 @@
 import Foundation
 
+public enum DockApplyOutcome: Equatable, Sendable {
+    case alreadyHeld
+    case written(attempts: Int)
+}
+
 public struct DockEngine: Sendable {
+    private static let writesBeforeGivingUp = 3
+
     private let store: DockPreferenceStore
     private let restarter: DockRestarting
 
@@ -31,19 +38,44 @@ public struct DockEngine: Sendable {
         return try read(from: sandbox)
     }
 
-    public func apply(_ state: DockState) throws(DockError) {
-        _ = try read()
-        try write(state, to: store)
-        try restart()
+    @discardableResult
+    public func apply(_ state: DockState) throws(DockError) -> DockApplyOutcome {
+        try writeUntilKept(state, readingBackAs: preview(state))
     }
 
     @discardableResult
-    public func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
+    public func applyIfNeeded(_ state: DockState) throws(DockError) -> DockApplyOutcome {
         let current = try read()
-        guard try preview(state) != current else { return false }
-        try write(state, to: store)
-        try restart()
-        return true
+        let wanted = try preview(state)
+        guard wanted != current else { return .alreadyHeld }
+        return try writeUntilKept(state, readingBackAs: wanted)
+    }
+
+    private func writeUntilKept(
+        _ state: DockState,
+        readingBackAs wanted: DockState
+    ) throws(DockError) -> DockApplyOutcome {
+        for attempt in 1 ... Self.writesBeforeGivingUp {
+            if attempt > 1 {
+                // The Dock that came back read what the old one saved. Writing before it is
+                // listed leaves it running with those tiles and nothing to restart.
+                restarter.waitUntilRunning()
+            }
+            try write(state, to: store)
+            try restart()
+            if holds(wanted) {
+                return .written(attempts: attempt)
+            }
+        }
+        throw .restart(.overwritten)
+    }
+
+    private func holds(_ wanted: DockState) -> Bool {
+        // A read error thrown from here would tell the user nothing was changed, after the
+        // write. Labels are not compared: the Dock rewrites them in the system language.
+        guard let current = try? read() else { return false }
+        return current.apps.map(\.id) == wanted.apps.map(\.id)
+            && current.settings == wanted.settings
     }
 
     private func read(from store: DockPreferenceStore) throws(DockError) -> DockState {

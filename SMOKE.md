@@ -28,7 +28,12 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
 5. **Settings** — change `tilesize` in the JSON, apply, and confirm the icons
    change size. Confirm keys that were absent from your domain are still absent
    afterwards: `defaults read com.apple.dock orientation` should still error.
-6. **Apply rejects stray arguments** — `apply state.json --dryrun` fails with
+6. **Two applies in a row both hold** — make `other.json` from `state.json` with the last two
+   apps swapped, then `swift run shitsurae-cli apply other.json; sleep 1; swift run shitsurae-cli
+   apply state.json`. Both exit zero, and six seconds later `dump` shows the order from
+   `state.json`. The Dock asked to quit here is a second old and saves its own tiles over the
+   write; the second command writes again. It is gone for about a second before it comes back.
+7. **Apply rejects stray arguments** — `apply state.json --dryrun` fails with
    "Unrecognized argument(s)" and does **not** apply. `apply` rewrites the whole
    Dock, so a silently swallowed argument would be the most expensive one in the
    tool.
@@ -48,6 +53,9 @@ the first launch saves your untouched Dock as the layout `Dock 1`.
       the settings window in front of other windows. There is no Dock tile to click.
 - [ ] With no layouts, the menu shows a hint that cannot be clicked.
 - [ ] Clicking a layout restarts the Dock and moves the checkmark to it.
+- [ ] Clicking one layout and another within two seconds leaves the second one in the Dock, not
+      only the checkmark on it. With auto-hide on the restart cannot be seen: reveal the Dock and
+      look at the tiles.
 - [ ] Every row's title starts at the same left edge, checked or not.
 - [ ] The menu width does not jump when the active layout changes.
 
@@ -240,6 +248,7 @@ see it: the recording fake is handed each message before `os.Logger` is.
 
 - [ ] Applying a layout writes one `dock` notice naming the layout id and the tile count, and says
       whether the Dock was written or already held it.
+- [ ] The second of two applies within two seconds says the Dock was written 2 times.
 - [ ] Pressing a hotkey writes a `hotkeys` notice with the layout id before the apply line. The
       `hotkeys` debug count appears too — `register` runs on every reload — which is how you can
       tell `--level debug` took.
