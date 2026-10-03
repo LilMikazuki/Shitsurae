@@ -9,7 +9,7 @@ private func sample(of failure: ShitsuraeFailure) -> ShitsuraeFailure {
     case .unsupportedSetting: .unsupportedSetting(key: "orientation", value: "diagonal")
     case .unsupportedTile: .unsupportedTile("spacer-tile")
     case .writeFailed: .writeFailed
-    case .writtenButNotApplied: .writtenButNotApplied
+    case let .writtenButNotApplied(reason): .writtenButNotApplied(reason)
     }
 }
 
@@ -18,7 +18,8 @@ private let everyFailure: [ShitsuraeFailure] = [
     .unsupportedSetting(key: "", value: ""),
     .unsupportedTile(""),
     .writeFailed,
-    .writtenButNotApplied
+    .writtenButNotApplied(.terminateRefused),
+    .writtenButNotApplied(.overwritten)
 ].map(sample(of:))
 
 @Test func onlyWrittenButNotAppliedAdmitsTheDockChanged() {
@@ -59,21 +60,28 @@ private let everyFailure: [ShitsuraeFailure] = [
 }
 
 @Test func everyReasonThrownAfterTheDomainIsWrittenAdmitsIt() {
-    let error = DockError.restart(.terminateRefused)
-    let admitsTheChange = if case .writtenButNotApplied = ShitsuraeFailure(from: error) {
-        true
-    } else {
-        false
+    for error in [DockError.restart(.terminateRefused), .restart(.overwritten)] {
+        let admitsTheChange = if case .writtenButNotApplied = ShitsuraeFailure(from: error) {
+            true
+        } else {
+            false
+        }
+        #expect(
+            admitsTheChange,
+            "\(error) is thrown after the Dock domain was rewritten, so the message must not deny it"
+        )
     }
-    #expect(
-        admitsTheChange,
-        "\(error) is thrown after the Dock domain was rewritten, so the message must not deny it"
-    )
 }
 
 @Test func aFailedRestartStillSaysHowToFinish() {
-    let refused = ShitsuraeFailure.writtenButNotApplied
+    let refused = ShitsuraeFailure.writtenButNotApplied(.terminateRefused)
     #expect(refused.message.contains("killall Dock"))
+}
+
+@Test func aDockThatPutItsOwnTilesBackIsToldToApplyAgainNotToRestart() {
+    let undone = ShitsuraeFailure.writtenButNotApplied(.overwritten)
+    #expect(undone.message.lowercased().contains("apply the layout again"))
+    #expect(!undone.message.contains("killall"))
 }
 
 @Test func aLayoutStoreFailureIsNotReportedAsADockFailure() {

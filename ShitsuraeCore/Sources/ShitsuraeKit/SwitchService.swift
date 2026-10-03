@@ -8,12 +8,13 @@ public final class SwitchService: Sendable {
         self.engine = engine
     }
 
-    public func apply(_ layout: DockLayout) throws(DockError) {
+    @discardableResult
+    public func apply(_ layout: DockLayout) throws(DockError) -> DockApplyOutcome {
         try engine.apply(layout.dockState(skippingMissing: .default))
     }
 
     @discardableResult
-    public func applyIfNeeded(_ layout: DockLayout) throws(DockError) -> Bool {
+    public func applyIfNeeded(_ layout: DockLayout) throws(DockError) -> DockApplyOutcome {
         try engine.applyIfNeeded(layout.dockState(skippingMissing: .default))
     }
 

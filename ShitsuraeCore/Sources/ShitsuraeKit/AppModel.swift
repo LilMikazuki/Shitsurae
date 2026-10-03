@@ -10,7 +10,7 @@ public enum ShitsuraeFailure: Equatable, Sendable {
     case unsupportedSetting(key: String, value: String)
     case unsupportedTile(String)
     case writeFailed
-    case writtenButNotApplied
+    case writtenButNotApplied(DockRestartError)
 
     public init(from error: DockError) {
         switch error {
@@ -25,8 +25,8 @@ public enum ShitsuraeFailure: Equatable, Sendable {
             }
         case .write:
             self = .writeFailed
-        case .restart:
-            self = .writtenButNotApplied
+        case let .restart(error):
+            self = .writtenButNotApplied(error)
         }
     }
 }
@@ -170,19 +170,18 @@ public final class AppModel {
         // mark and the retry takes the normal writing path.
         let reapplying = id == activeLayoutID
         do {
-            let wrote = try await offMainThread { () throws(DockError) -> Bool in
+            let outcome = try await offMainThread { () throws(DockError) -> DockApplyOutcome in
                 if reapplying {
                     return try switcher.applyIfNeeded(snapshot)
                 }
-                try switcher.apply(snapshot)
-                return true
+                return try switcher.apply(snapshot)
             }
             log.record(
                 .notice, .dock,
                 """
                 Applied layout \(id): \
                 \(snapshot.dockState(skippingMissing: .default).apps.count) tiles, \
-                \(wrote ? "the Dock was written" : "the Dock already held it")
+                \(Self.described(outcome))
                 """
             )
             if snapshot.quitsOtherApps {
@@ -211,6 +210,20 @@ public final class AppModel {
             }
         } catch {
             raise(.failure(dockFailed(error, during: "Applying layout \(id)")))
+        }
+    }
+
+    private static func described(_ outcome: DockApplyOutcome) -> String {
+        switch outcome {
+        case .alreadyHeld:
+            "the Dock already held it"
+        case .written(attempts: 1):
+            "the Dock was written"
+        case let .written(attempts):
+            """
+            the Dock was written \(attempts) times, \
+            because it saved its own tiles over the earlier writes
+            """
         }
     }
 

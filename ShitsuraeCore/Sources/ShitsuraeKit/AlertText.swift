@@ -38,10 +38,15 @@ public extension ShitsuraeFailure {
             macOS didn't accept the change. Your Dock may be left part-way — \
             apply the layout again, or restore your original Dock.
             """
-        case .writtenButNotApplied:
+        case .writtenButNotApplied(.terminateRefused):
             """
             Shitsurae couldn't restart the Dock. Run `killall Dock` in Terminal \
             to finish.
+            """
+        case .writtenButNotApplied(.overwritten):
+            """
+            The Dock restarted, but kept putting its previous apps back. \
+            Apply the layout again in a few seconds.
             """
         }
     }

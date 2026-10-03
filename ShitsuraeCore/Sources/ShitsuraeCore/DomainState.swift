@@ -26,7 +26,7 @@ public extension DockWriteError {
 public extension DockRestartError {
     var domainState: DomainState {
         switch self {
-        case .terminateRefused: .changed
+        case .terminateRefused, .overwritten: .changed
         }
     }
 }

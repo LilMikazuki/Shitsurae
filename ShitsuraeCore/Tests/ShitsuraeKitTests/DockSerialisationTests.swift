@@ -16,21 +16,22 @@ private final class CountingEngine: DockApplying, @unchecked Sendable {
         DockState(apps: [], settings: DockSettings())
     }
 
-    func apply(_: DockState) throws(DockError) {
+    @discardableResult
+    func apply(_: DockState) throws(DockError) -> DockApplyOutcome {
         lock.withLock {
             inFlight += 1
             peak = max(peak, inFlight)
         }
         Thread.sleep(forTimeInterval: 0.05)
         lock.withLock { inFlight -= 1 }
+        return .written(attempts: 1)
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> DockApplyOutcome {
         let current = try read()
-        guard state != current else { return false }
-        try apply(state)
-        return true
+        guard state != current else { return .alreadyHeld }
+        return try apply(state)
     }
 }
 
@@ -96,15 +97,16 @@ private final class GatedEngine: DockApplying, @unchecked Sendable {
         DockState(apps: [], settings: DockSettings())
     }
 
-    func apply(_: DockState) throws(DockError) {
+    @discardableResult
+    func apply(_: DockState) throws(DockError) -> DockApplyOutcome {
         enteredGate.signal()
         release.wait()
+        return .written(attempts: 1)
     }
 
     @discardableResult
-    func applyIfNeeded(_ state: DockState) throws(DockError) -> Bool {
+    func applyIfNeeded(_ state: DockState) throws(DockError) -> DockApplyOutcome {
         try apply(state)
-        return true
     }
 }
 

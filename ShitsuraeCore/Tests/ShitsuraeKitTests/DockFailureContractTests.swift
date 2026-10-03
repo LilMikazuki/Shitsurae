@@ -68,7 +68,7 @@ private enum WriteFailure: FailureFamily {
 }
 
 private enum RestartFailure: FailureFamily {
-    case terminateRefused
+    case terminateRefused, overwritten
 
     var site: ThrowSite {
         switch self {
@@ -76,6 +76,11 @@ private enum RestartFailure: FailureFamily {
             throwSite(
                 DockRestartError.terminateRefused,
                 "DockRestarter, after the domain was written"
+            )
+        case .overwritten:
+            throwSite(
+                DockRestartError.overwritten,
+                "DockEngine, after every restart the Dock saved its own tiles over the write"
             )
         }
     }
@@ -99,6 +104,7 @@ private func family(of error: DockWriteError) -> WriteFailure {
 private func family(of error: DockRestartError) -> RestartFailure {
     switch error {
     case .terminateRefused: .terminateRefused
+    case .overwritten: .overwritten
     }
 }
 
@@ -133,7 +139,7 @@ private func deniesAnyChange(_ text: String) -> Bool {
 }
 
 @Test func theTableCoversEveryFailureOnTheDockPath() {
-    #expect(throwSites.count == 6)
+    #expect(throwSites.count == 7)
 }
 
 @Test func noFailureDeniesAChangeItAlreadyMade() {
@@ -157,7 +163,7 @@ private func deniesAnyChange(_ text: String) -> Bool {
 @Test func killallIsOnlyAdvisedWhenARunningDockRefusedToQuit() {
     for site in throwSites where shown(ShitsuraeFailure(from: site.error)).contains("killall") {
         #expect(
-            ShitsuraeFailure(from: site.error) == .writtenButNotApplied,
+            ShitsuraeFailure(from: site.error) == .writtenButNotApplied(.terminateRefused),
             "\(site.site): restarting only finishes the job when a running Dock refused to quit"
         )
     }

@@ -3,10 +3,12 @@ import Foundation
 
 public protocol DockRestarting: Sendable {
     func restart() throws(DockRestartError)
+    func waitUntilRunning()
 }
 
 public enum DockRestartError: Error, Equatable {
     case terminateRefused
+    case overwritten
 }
 
 extension DockRestartError: CustomStringConvertible {
@@ -14,6 +16,8 @@ extension DockRestartError: CustomStringConvertible {
         switch self {
         case .terminateRefused:
             "The Dock was asked to quit but is still running."
+        case .overwritten:
+            "The Dock restarted, but each time it saved its own tiles over what was written."
         }
     }
 }
@@ -55,17 +59,24 @@ public final class DockRestarter: DockRestarting {
         // No Dock running means nothing to restart: the next Dock to start reads
         // the domain that was just written.
         let asked = processes()
-        for app in asked {
-            // `terminate()` answers false for a Dock that has already gone and true
-            // for one that ignores the request; only liveness afterwards means anything.
-            _ = app.terminate()
-        }
+        // `terminate()` answers false for a Dock that has already gone and true for one that
+        // ignores the request; only liveness afterwards means anything. It also answers false
+        // for a Dock still starting, which then never quits: that one has to be asked again.
+        var unreached = asked.filter { !$0.terminate() }
 
         let deadline = DispatchTime.now() + timeout
         while asked.contains(where: \.isRunning) {
             guard DispatchTime.now() < deadline else {
                 throw DockRestartError.terminateRefused
             }
+            Thread.sleep(forTimeInterval: pollInterval)
+            unreached.removeAll { !$0.isRunning || $0.terminate() }
+        }
+    }
+
+    public func waitUntilRunning() {
+        let deadline = DispatchTime.now() + timeout
+        while !processes().contains(where: \.isRunning), DispatchTime.now() < deadline {
             Thread.sleep(forTimeInterval: pollInterval)
         }
     }

@@ -128,7 +128,7 @@ private func removeDomain(_ domain: String) {
 
     await model.apply(id: id)
 
-    #expect(model.alert == .failure(.writtenButNotApplied))
+    #expect(model.alert == .failure(.writtenButNotApplied(.terminateRefused)))
 }
 
 @Test @MainActor func aRestartFailureDoesNotSetTheActiveMark() async throws {
@@ -157,7 +157,7 @@ private func removeDomain(_ domain: String) {
     engine.applyError = .restart(.terminateRefused)
     await model.apply(id: focus.id)
 
-    #expect(model.alert == .failure(.writtenButNotApplied))
+    #expect(model.alert == .failure(.writtenButNotApplied(.terminateRefused)))
     #expect(model.activeLayoutID == work.id)
 }
 
@@ -174,7 +174,8 @@ private func removeDomain(_ domain: String) {
             .unsupportedTile("spacer-tile")
         ),
         (.write(.synchronizeFailed), .writeFailed),
-        (.restart(.terminateRefused), .writtenButNotApplied)
+        (.restart(.terminateRefused), .writtenButNotApplied(.terminateRefused)),
+        (.restart(.overwritten), .writtenButNotApplied(.overwritten))
     ]
 
     for (error, expected) in pairs {
@@ -190,8 +191,8 @@ private func removeDomain(_ domain: String) {
     }
 
     #expect(
-        produced.count == 5,
-        "five distinct reasons; collapsing any two would hide a difference from the user"
+        produced.count == 6,
+        "six distinct reasons; collapsing any two would hide a difference from the user"
     )
 }
 
@@ -871,7 +872,7 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
 
     model.dismissAlert(.delete(id: work, name: "Work"))
 
-    #expect(model.beginPresenting() == .failure(.writtenButNotApplied))
+    #expect(model.beginPresenting() == .failure(.writtenButNotApplied(.terminateRefused)))
 }
 
 @Test @MainActor func onlyOneCallerIsToldToShowAnAlert() async throws {
@@ -896,7 +897,7 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     await model.confirmAlert(.delete(id: work, name: "Work"))
 
     #expect(model.layouts.isEmpty)
-    #expect(model.beginPresenting() == .failure(.writtenButNotApplied))
+    #expect(model.beginPresenting() == .failure(.writtenButNotApplied(.terminateRefused)))
 }
 
 @Test @MainActor func anAnswerMeantForAnotherDialogIsIgnored() async throws {
@@ -907,7 +908,7 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     await model.apply(id: work)
     _ = model.beginPresenting()
 
-    await model.confirmAlert(.failure(.writtenButNotApplied))
+    await model.confirmAlert(.failure(.writtenButNotApplied(.terminateRefused)))
 
     #expect(model.layouts.map(\.name) == ["Work"])
     #expect(model.alert == .delete(id: work, name: "Work"))
@@ -933,7 +934,7 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     await model.apply(id: work)
     await model.apply(id: work)
 
-    model.dismissAlert(.failure(.writtenButNotApplied))
+    model.dismissAlert(.failure(.writtenButNotApplied(.terminateRefused)))
 
     #expect(model.alert == nil)
 }
@@ -960,4 +961,16 @@ private func settingsLayout(_ name: String = "Work", autohide: Bool = true) -> D
     #expect(model.alert == .deleteFailed)
     #expect(model.layouts.map(\.name) == ["Work"])
     #expect(model.activeLayoutID == work)
+}
+
+@Test @MainActor func aLayoutTheDockDidNotKeepIsNotShownAsActive() async throws {
+    let engine = FakeDockEngine()
+    engine.applyError = .restart(.overwritten)
+    let (model, _, _) = try makeModel(engine: engine, layouts: [testLayout("Work", order: 0)])
+    let id = try #require(model.layouts.first?.id)
+
+    await model.apply(id: id)
+
+    #expect(model.alert == .failure(.writtenButNotApplied(.overwritten)))
+    #expect(model.activeLayoutID == nil)
 }
