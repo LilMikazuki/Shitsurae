@@ -353,6 +353,39 @@ public final class AppModel {
         replace(layout)
     }
 
+    public func adoptDockPosition() {
+        // An apply writes the next layout's position while the mark still names the previous
+        // one; adopting then would hand that position to the layout being left.
+        guard !isChangingDock,
+              let id = activeLayoutID,
+              var layout = layouts.first(where: { $0.id == id })
+        else { return }
+
+        let position: DockOrientation?
+        do {
+            position = try switcher.readCurrentState().settings.orientation
+        } catch {
+            dockFailed(error, during: "Reading the Dock's position")
+            return
+        }
+        guard position != layout.settings.orientation else { return }
+
+        layout.settings.orientation = position
+        // Not `mutate`: the Dock moved first and still holds this layout, so the active mark
+        // stays.
+        do {
+            try store.save(layout)
+        } catch {
+            storeFailed(error, during: "Recording the Dock's position in", layout: id)
+            return
+        }
+        replace(layout)
+        log.record(
+            .notice, .layouts,
+            "Layout \(id) took the Dock's position: \(position?.rawValue ?? "unset")"
+        )
+    }
+
     public func moveApp(in id: UUID, from: Int, to: Int) {
         guard from != to else { return }
         moveApps(in: id, fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
